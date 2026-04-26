@@ -1,0 +1,20 @@
+// Prisma schema for Fracture Recovery Companion.
+//
+// Story 1.1 baseline: only the generator + datasource wiring is declared so
+// `prisma generate` succeeds and `src/lib/prisma.ts` type-checks.
+// Business models (User, Program, Day, ChatMessage, ShareLink, etc.)
+// are introduced by Story 3.1 (Data Model Foundation) per the architecture doc.
+//
+// See: 技术架构详细设计.md §4 数据模型设计
+//      epics.md Epic 3 - Recovery Program Foundation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Supabase Postgres for both dev and prod - see ADR-004 in 技术架构详细设计.md
+  // Local dev can also point at a Supabase branch DB.
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
