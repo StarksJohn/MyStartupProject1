@@ -2,14 +2,17 @@
 /**
  * Environment Variables Verification - Story 1.1 baseline.
  *
- * Checks only the shell-level env vars this story introduces:
+ * Checks shell + Story 2.1 identity env vars:
  *   - NEXT_PUBLIC_APP_URL
  *   - NEXTAUTH_URL
  *   - NEXTAUTH_SECRET
+ *   - DATABASE_URL
+ *   - EMAIL_SERVER
+ *   - EMAIL_FROM
  *   - Sentry DSN (optional but warned)
  *
- * Additional keys (DATABASE_URL, STRIPE_*, GEMINI, GROQ, UPSTASH_*, RESEND_*)
- * are added by the stories that introduce those features.
+ * Additional keys (STRIPE_*, GEMINI, GROQ, UPSTASH_*) are added by the stories
+ * that introduce those features.
  *
  * Usage: pnpm run deploy:verify
  */
@@ -43,6 +46,24 @@ const ENV_REQUIREMENTS: EnvRequirement[] = [
     required: true,
     pattern: /^.{32,}$/,
     description: "NextAuth secret (min 32 characters)",
+  },
+  {
+    name: "DATABASE_URL",
+    required: true,
+    pattern: /^postgresql:\/\//,
+    description: "Postgres connection string used by Prisma and NextAuth",
+  },
+  {
+    name: "EMAIL_SERVER",
+    required: true,
+    pattern: /^smtp(s)?:\/\//,
+    description: "SMTP connection string used for Magic Link emails",
+  },
+  {
+    name: "EMAIL_FROM",
+    required: true,
+    pattern: /@/,
+    description: "Sender address for Magic Link emails",
   },
   {
     name: "SENTRY_DSN",
