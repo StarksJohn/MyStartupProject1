@@ -1,6 +1,6 @@
 # Story 2.3: Recovery Profile Multi-Step Form
 
-Status: in-progress
+Status: code-review
 
 <!-- Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -82,15 +82,15 @@ so that the product can tailor the 14-day plan to my situation.
   - [x] 4.5 Show inline validation errors before advancing or submitting.
   - [x] 4.6 After a successful save, show a Story 2.4 placeholder and no checkout CTA.
 
-- [ ] **T5 - Add focused automated coverage** (AC: 1, 4, 5, 6, 7)
+- [x] **T5 - Add focused automated coverage** (AC: 1, 4, 5, 6, 7)
   - [x] 5.1 Extend `e2e/auth-shell.spec.ts` or add `e2e/onboarding-recovery-profile.spec.ts`.
   - [x] 5.2 Assert unauthenticated `/onboarding` still redirects to `/sign-in?callbackUrl=%2Fonboarding`.
   - [x] 5.3 Assert eligible answers reveal the Recovery Profile continue action and Step 2 form.
   - [x] 5.4 Assert not-eligible and clinician-attention outcomes do not show Recovery Profile fields.
   - [x] 5.5 Assert required-field validation blocks incomplete profile submission.
-  - [ ] 5.6 Assert a valid profile submission reaches the Story 2.4 placeholder.
-  - [ ] 5.7 Preserve existing public Landing / Blog / Legal / FAQ / 404 coverage.
-  - [ ] 5.8 Run `pnpm db:generate`, `pnpm typecheck`, `pnpm lint`, and focused E2E after implementation.
+  - [x] 5.6 Assert a valid profile submission reaches the Story 2.4 placeholder.
+  - [x] 5.7 Preserve existing public Landing / Blog / Legal / FAQ / 404 coverage.
+  - [x] 5.8 Run `pnpm db:generate`, `pnpm typecheck`, `pnpm lint`, and focused E2E after implementation.
 
 ## Dev Notes
 
@@ -179,6 +179,8 @@ TBD
 - `pnpm exec prisma db push` failed because `DATABASE_URL` is not configured in the current shell.
 - Local fallback check: Docker is not installed/available in the current shell, and `localhost:5432` is not accepting TCP connections.
 - Focused `pnpm test:e2e e2e/auth-shell.spec.ts` currently passes 20/22 tests; the 2 valid profile submission tests fail because the API cannot initialize Prisma without `DATABASE_URL`.
+- Supabase SQL Editor was used to apply the Prisma-generated schema because direct `prisma db push` could not reach the IPv6-only direct host from this environment.
+- `pnpm db:generate`, `pnpm typecheck`, `pnpm lint`, and focused `pnpm test:e2e e2e/auth-shell.spec.ts` passed after configuring Supabase pooler access and applying the schema.
 
 ### Completion Notes List
 
@@ -186,6 +188,11 @@ TBD
 - Added typed Recovery Profile validation and a Prisma-backed save API scoped to the signed-in user.
 - Added the mobile-first multi-step Recovery Profile form and Story 2.4 placeholder.
 - Added focused E2E coverage for Step 2 reachability, safety stops, validation, and valid submission; valid submission remains blocked in this environment until `DATABASE_URL` is configured and the schema is pushed.
+- Verified the persisted valid-submission path against Supabase; Story 2.3 is ready for code review.
+
+### Review Findings
+
+- [x] [Review] Lightweight Story 2.3 review found no blocking patch items. Persistence, safety stops, validation, and Story 2.4 placeholder coverage are verified.
 
 ### File List
 
@@ -204,3 +211,4 @@ TBD
 
 - 2026-04-27: Created Story 2.3 Recovery Profile Multi-Step Form and moved story to `ready-for-dev`.
 - 2026-04-27: Implemented Story 2.3 core code; validation blocked from code-review by missing `DATABASE_URL` for Prisma persistence E2E.
+- 2026-04-28: Applied schema through Supabase SQL Editor, verified focused E2E 22/22, and moved story to `code-review`.
