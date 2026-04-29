@@ -6,6 +6,7 @@ import { useState, useSyncExternalStore } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
+import { PersonalizedSummary } from "@/components/onboarding/personalized-summary";
 import { RecoveryProfileForm } from "@/components/onboarding/recovery-profile-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +14,7 @@ import {
   type EligibilityGateAnswers,
   type EligibilityResult,
 } from "@/lib/onboarding/eligibility";
+import type { RecoveryProfileInput } from "@/lib/onboarding/recovery-profile";
 
 interface EligibilityGateProps {
   userEmail: string;
@@ -179,8 +181,11 @@ function answersMatchSubmitted(
 
 export function EligibilityGate({ userEmail }: EligibilityGateProps) {
   const [onboardingStep, setOnboardingStep] = useState<
-    "eligibility" | "profile"
+    "eligibility" | "profile" | "summary"
   >("eligibility");
+  const [savedProfile, setSavedProfile] = useState<RecoveryProfileInput | null>(
+    null
+  );
   const isHydrated = useSyncExternalStore(
     subscribeToHydration,
     getClientSnapshot,
@@ -229,6 +234,20 @@ export function EligibilityGate({ userEmail }: EligibilityGateProps) {
       <RecoveryProfileForm
         userEmail={userEmail}
         onBackToEligibility={() => setOnboardingStep("eligibility")}
+        onProfileSaved={(profile) => {
+          setSavedProfile(profile);
+          setOnboardingStep("summary");
+        }}
+      />
+    );
+  }
+
+  if (onboardingStep === "summary" && savedProfile) {
+    return (
+      <PersonalizedSummary
+        userEmail={userEmail}
+        profile={savedProfile}
+        onBackToProfile={() => setOnboardingStep("profile")}
       />
     );
   }

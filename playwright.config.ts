@@ -13,7 +13,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : 4,
+  workers: 1,
   reporter: [
     ["html", { open: "never" }],
     ["list"],
@@ -47,6 +47,8 @@ export default defineConfig({
   // Reuse existing dev server when PLAYWRIGHT_TEST_BASE_URL is set externally.
   // Use webpack for automated E2E because Turbopack can panic under parallel
   // Playwright navigation on Windows with the current Next.js 16 dev build.
+  // Keep one worker because auth + Prisma onboarding flows mutate shared local
+  // session/database state and became flaky when Desktop/Mobile ran concurrently.
   ...(process.env.PLAYWRIGHT_TEST_BASE_URL
     ? {}
     : {

@@ -1,0 +1,62 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
+import { getAuthSession } from "@/lib/auth/session";
+
+interface CheckoutSuccessPageProps {
+  searchParams: Promise<{
+    session_id?: string;
+  }>;
+}
+
+export default async function CheckoutSuccessPage({
+  searchParams,
+}: CheckoutSuccessPageProps) {
+  const session = await getAuthSession();
+
+  if (!session?.user?.id) {
+    redirect("/sign-in?callbackUrl=%2Fonboarding%2Fcheckout%2Fsuccess");
+  }
+
+  const { session_id: checkoutSessionId } = await searchParams;
+
+  return (
+    <main className="container py-10 sm:py-14">
+      <section className="mx-auto max-w-3xl rounded-2xl border bg-card p-5 shadow-xs sm:p-8">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Checkout success
+        </p>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+          We are confirming your payment
+        </h1>
+        <p className="mt-3 text-sm text-muted-foreground sm:text-base">
+          Your personalized plan will be unlocked shortly after the payment is
+          confirmed. The next story will connect Stripe webhook unlock and plan
+          creation, so no Day 1 program is shown yet.
+        </p>
+
+        {checkoutSessionId ? (
+          <p className="mt-6 rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+            Checkout reference:{" "}
+            <span className="font-medium">{checkoutSessionId}</span>
+          </p>
+        ) : null}
+
+        <div className="mt-6 rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+          Do not reload to retry payment from this page. If you need help, return
+          to onboarding or contact support when the support flow is available.
+        </div>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <Button asChild>
+            <Link href="/onboarding">Back to onboarding</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/">Back to landing page</Link>
+          </Button>
+        </div>
+      </section>
+    </main>
+  );
+}

@@ -1,6 +1,6 @@
 # Story 2.3: Recovery Profile Multi-Step Form
 
-Status: code-review
+Status: done
 
 <!-- Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -212,3 +212,4 @@ TBD
 - 2026-04-27: Created Story 2.3 Recovery Profile Multi-Step Form and moved story to `ready-for-dev`.
 - 2026-04-27: Implemented Story 2.3 core code; validation blocked from code-review by missing `DATABASE_URL` for Prisma persistence E2E.
 - 2026-04-28: Applied schema through Supabase SQL Editor, verified focused E2E 22/22, and moved story to `code-review`.
+- 2026-04-29: Lightweight review confirmed no blocking patch items; moved story to `done`.

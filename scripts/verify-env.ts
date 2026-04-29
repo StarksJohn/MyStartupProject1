@@ -10,9 +10,10 @@
  *   - EMAIL_SERVER
  *   - EMAIL_FROM
  *   - Sentry DSN (optional but warned)
+ *   - STRIPE_SECRET_KEY (required in production, dev-mocked locally)
  *
- * Additional keys (STRIPE_*, GEMINI, GROQ, UPSTASH_*) are added by the stories
- * that introduce those features.
+ * Additional keys (STRIPE_WEBHOOK_SECRET, GEMINI, GROQ, UPSTASH_*) are added
+ * by the stories that introduce those features.
  *
  * Usage: pnpm run deploy:verify
  */
@@ -23,6 +24,7 @@ import * as path from "path";
 interface EnvRequirement {
   name: string;
   required: boolean;
+  requiredInProduction?: boolean;
   pattern?: RegExp;
   description: string;
   helpUrl?: string;
@@ -74,6 +76,14 @@ const ENV_REQUIREMENTS: EnvRequirement[] = [
     name: "NEXT_PUBLIC_SENTRY_DSN",
     required: false,
     description: "Client-side Sentry DSN (optional in dev)",
+  },
+  {
+    name: "STRIPE_SECRET_KEY",
+    required: false,
+    requiredInProduction: true,
+    pattern: /^sk_(test|live)_/,
+    description:
+      "Stripe secret key for one-time Checkout (dev-mocked when absent locally)",
   },
 ];
 
@@ -130,6 +140,7 @@ function verifyEnvironment(): boolean {
     path.join(process.cwd(), ".env.production.local")
   );
   const env = { ...process.env, ...envLocal, ...envProd };
+  const isProduction = env.NODE_ENV === "production";
 
   let passed = 0;
   let failed = 0;
@@ -138,9 +149,11 @@ function verifyEnvironment(): boolean {
 
   for (const req of ENV_REQUIREMENTS) {
     const value = env[req.name];
+    const isRequired =
+      req.required || Boolean(req.requiredInProduction && isProduction);
 
     if (!value || value.includes("[") || value.includes("replace-with")) {
-      if (req.required) {
+      if (isRequired) {
         log(`  [FAIL] ${req.name}`, colors.red);
         log(`         ${req.description}`, colors.reset);
         if (req.helpUrl) log(`         Get from: ${req.helpUrl}`, colors.blue);

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
 interface RecoveryProfileFormProps {
   userEmail: string;
   onBackToEligibility: () => void;
+  onProfileSaved: (profile: RecoveryProfileInput) => void;
 }
 
 type FieldName = keyof RecoveryProfileInput;
@@ -47,17 +48,34 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-sm text-destructive">{message}</p>;
 }
 
+function subscribeToHydration() {
+  return () => {};
+}
+
+function getClientSnapshot() {
+  return true;
+}
+
+function getServerSnapshot() {
+  return false;
+}
+
 export function RecoveryProfileForm({
   userEmail,
   onBackToEligibility,
+  onProfileSaved,
 }: RecoveryProfileFormProps) {
   const [activeStep, setActiveStep] = useState(0);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">(
+  const [status, setStatus] = useState<"idle" | "saving" | "error">(
     "idle"
+  );
+  const isHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientSnapshot,
+    getServerSnapshot
   );
   const {
     formState: { errors },
-    getValues,
     handleSubmit,
     register,
     trigger,
@@ -105,34 +123,12 @@ export function RecoveryProfileForm({
       body: JSON.stringify(values),
     });
 
-    setStatus(response.ok ? "saved" : "error");
-  }
+    if (!response.ok) {
+      setStatus("error");
+      return;
+    }
 
-  if (status === "saved") {
-    const values = getValues();
-
-    return (
-      <main className="container py-10 sm:py-14">
-        <section className="mx-auto max-w-3xl rounded-2xl border bg-card p-5 shadow-xs sm:p-8">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Step 2 of 3 complete
-          </p>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Recovery Profile saved
-          </h1>
-          <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            Your profile is ready for the personalized summary and checkout step
-            in Story 2.4. No payment or program has been created yet.
-          </p>
-          <div className="mt-6 rounded-xl border bg-muted/40 p-4 text-sm">
-            <p>
-              <span className="font-medium">Profile:</span> {values.bodyPart},{" "}
-              {values.subType}, pain level {values.painLevel}/10
-            </p>
-          </div>
-        </section>
-      </main>
-    );
+    onProfileSaved(values);
   }
 
   return (
@@ -377,7 +373,7 @@ export function RecoveryProfileForm({
               Previous
             </Button>
             {isLastStep ? (
-              <Button type="submit" disabled={status === "saving"}>
+              <Button type="submit" disabled={!isHydrated || status === "saving"}>
                 {status === "saving" ? "Saving..." : "Save Recovery Profile"}
               </Button>
             ) : (

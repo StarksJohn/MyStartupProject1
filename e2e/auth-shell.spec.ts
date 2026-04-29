@@ -53,6 +53,31 @@ async function continueToRecoveryProfile(page: import("@playwright/test").Page) 
   ).toBeVisible();
 }
 
+async function saveRecoveryProfile(page: import("@playwright/test").Page) {
+  const summaryHeading = page.getByRole("heading", {
+    name: "Personalized Summary",
+  });
+
+  if (await summaryHeading.isVisible().catch(() => false)) {
+    return;
+  }
+
+  await page
+    .getByRole("button", { name: "Save Recovery Profile" })
+    .click({ timeout: 5000 })
+    .catch(() => undefined);
+
+  await expect(summaryHeading).toBeVisible({ timeout: 30000 });
+}
+
+function getLocalDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 test.describe("auth identity shell", () => {
   test.describe.configure({ mode: "serial" });
 
@@ -75,6 +100,32 @@ test.describe("auth identity shell", () => {
     await page.goto("/onboarding");
 
     await expect(page).toHaveURL(/\/sign-in\?callbackUrl=%2Fonboarding/);
+    await expect(
+      page.getByRole("heading", { name: /sign in with a secure magic link/i })
+    ).toBeVisible();
+  });
+
+  test("checkout success redirects unauthenticated users to sign-in", async ({
+    page,
+  }) => {
+    await page.goto("/onboarding/checkout/success");
+
+    await expect(page).toHaveURL(
+      /\/sign-in\?callbackUrl=%2Fonboarding%2Fcheckout%2Fsuccess/
+    );
+    await expect(
+      page.getByRole("heading", { name: /sign in with a secure magic link/i })
+    ).toBeVisible();
+  });
+
+  test("checkout cancelled redirects unauthenticated users to sign-in", async ({
+    page,
+  }) => {
+    await page.goto("/onboarding/checkout/cancelled");
+
+    await expect(page).toHaveURL(
+      /\/sign-in\?callbackUrl=%2Fonboarding%2Fcheckout%2Fcancelled/
+    );
     await expect(
       page.getByRole("heading", { name: /sign in with a secure magic link/i })
     ).toBeVisible();
@@ -264,7 +315,7 @@ test.describe("auth identity shell", () => {
     await expect(page.getByText(/profile part 1 of 3/i)).toBeVisible();
   });
 
-  test("valid recovery profile submission reaches summary placeholder", async ({
+  test("valid recovery profile submission reaches personalized summary", async ({
     page,
   }) => {
     await signInForOnboarding(page);
@@ -274,7 +325,9 @@ test.describe("auth identity shell", () => {
     await page
       .getByLabel("Subtype or short injury description")
       .fill("proximal phalanx stiffness");
-    await page.getByLabel("Cast or splint removal date").fill("2026-04-20");
+    await page
+      .getByLabel("Cast or splint removal date")
+      .fill(getLocalDateInputValue());
     await page.getByRole("button", { name: "Next", exact: true }).click();
 
     await page.getByLabel("Current pain level, 0 to 10").fill("3");
@@ -284,16 +337,77 @@ test.describe("auth identity shell", () => {
     await page
       .getByLabel("Optional notes for plan mapping")
       .fill("Typing is the main daily challenge.");
-    await page.getByRole("button", { name: "Save Recovery Profile" }).click();
+    await saveRecoveryProfile(page);
 
     await expect(
-      page.getByRole("heading", { name: "Recovery Profile saved" })
+      page.getByRole("heading", { name: "Personalized Summary" })
     ).toBeVisible();
     await expect(
-      page.getByText(/ready for the personalized summary and checkout step/i)
+      page.getByText(/you are in day \d+ of the critical 2-week window/i)
     ).toBeVisible();
+    await expect(page.getByText("$14.99 one-time")).toBeVisible();
     await expect(
       page.getByRole("button", { name: /unlock my 14-day plan/i })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Recovery Profile saved" })
     ).not.toBeVisible();
+  });
+
+  test("checkout CTA uses dev fallback and reaches success page", async ({
+    page,
+  }) => {
+    await signInForOnboarding(page);
+    await waitForEligibilityGate(page);
+    await continueToRecoveryProfile(page);
+
+    await page
+      .getByLabel("Subtype or short injury description")
+      .fill("proximal phalanx stiffness");
+    await page
+      .getByLabel("Cast or splint removal date")
+      .fill(getLocalDateInputValue());
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+
+    await page.getByLabel("Current pain level, 0 to 10").fill("3");
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+
+    await page.getByLabel("Work or daily-use category").selectOption("desk");
+    await saveRecoveryProfile(page);
+
+    const checkoutButton = page.getByRole("button", {
+      name: "Unlock my 14-day plan",
+    });
+    await expect(checkoutButton).toBeVisible();
+    await checkoutButton.click();
+
+    await expect(page).toHaveURL(
+      /\/onboarding\/checkout\/success\?session_id=dev_mock/
+    );
+    await expect(
+      page.getByRole("heading", { name: "We are confirming your payment" })
+    ).toBeVisible();
+    await expect(
+      page.getByText(/personalized plan will be unlocked shortly/i)
+    ).toBeVisible();
+    await expect(page.getByText(/Day 1 program is shown yet/i)).toBeVisible();
+  });
+
+  test("authenticated users see checkout cancelled recovery paths", async ({
+    page,
+  }) => {
+    await signInForOnboarding(page);
+
+    await page.goto("/onboarding/checkout/cancelled");
+
+    await expect(
+      page.getByRole("heading", { name: "No payment was completed" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Back to onboarding" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Read the refund policy" })
+    ).toBeVisible();
   });
 });
