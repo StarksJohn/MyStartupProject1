@@ -4,6 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import EmailProvider from "next-auth/providers/email";
 
 import { prisma } from "@/lib/prisma";
+import { getActiveProgramForUser } from "@/lib/program/provisioning-service";
 
 const APP_NAME = "Fracture Recovery Companion";
 const DEFAULT_EMAIL_FROM = "Fracture Recovery Companion <hello@example.com>";
@@ -108,8 +109,23 @@ export const authOptions: NextAuthOptions = {
         token.activeProgramId = user.activeProgramId ?? null;
       }
 
-      token.hasPurchase = token.hasPurchase ?? false;
-      token.activeProgramId = token.activeProgramId ?? null;
+      if (token.id) {
+        try {
+          const activeProgram = await getActiveProgramForUser(String(token.id));
+          token.hasPurchase = Boolean(activeProgram);
+          token.activeProgramId = activeProgram?.id ?? null;
+        } catch (error) {
+          console.error("Failed to resolve purchase session state", {
+            userId: token.id,
+            error,
+          });
+          token.hasPurchase = false;
+          token.activeProgramId = null;
+        }
+      } else {
+        token.hasPurchase = false;
+        token.activeProgramId = null;
+      }
 
       return token;
     },

@@ -1,0 +1,20 @@
+{
+  "purpose": "Canonical source for exercise and video metadata referenced by program templates.",
+  "status": "contract-placeholder",
+  "requiredShape": {
+    "slug": "string",
+    "title": "string",
+    "bodyPart": "finger | metacarpal",
+    "stage": "string",
+    "instructions": ["string"],
+    "contraindications": ["string"],
+    "durationSeconds": "number",
+    "repetitions": "string",
+    "videoUrl": "string | null",
+    "thumbnailUrl": "string | null"
+  },
+  "boundaries": [
+    "Text instructions must be sufficient without video.",
+    "Entries must avoid diagnosis or medical-clearance language."
+  ]
+}

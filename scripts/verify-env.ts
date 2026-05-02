@@ -12,7 +12,7 @@
  *   - Sentry DSN (optional but warned)
  *   - STRIPE_SECRET_KEY (required in production, dev-mocked locally)
  *
- * Additional keys (STRIPE_WEBHOOK_SECRET, GEMINI, GROQ, UPSTASH_*) are added
+ * Additional keys (GEMINI, GROQ, UPSTASH_*) are added
  * by the stories that introduce those features.
  *
  * Usage: pnpm run deploy:verify
@@ -84,6 +84,14 @@ const ENV_REQUIREMENTS: EnvRequirement[] = [
     pattern: /^sk_(test|live)_/,
     description:
       "Stripe secret key for one-time Checkout (dev-mocked when absent locally)",
+  },
+  {
+    name: "STRIPE_WEBHOOK_SECRET",
+    required: false,
+    requiredInProduction: true,
+    pattern: /^whsec_/,
+    description:
+      "Stripe endpoint secret for verifying webhook signatures in production",
   },
 ];
 

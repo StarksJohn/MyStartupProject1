@@ -1,7 +1,15 @@
 import { expect, test } from "@playwright/test";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+function createDevUserId(email: string) {
+  return `dev-${Buffer.from(email).toString("base64url").slice(0, 24)}`;
+}
 
 async function signInForOnboarding(page: import("@playwright/test").Page) {
   const email = `dev-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+  const userId = createDevUserId(email);
 
   await page.goto("/sign-in?callbackUrl=%2Fonboarding");
   await page.getByLabel("Email address").fill(email);
@@ -13,6 +21,8 @@ async function signInForOnboarding(page: import("@playwright/test").Page) {
   await expect(devLoginButton).toBeEnabled();
   await devLoginButton.click();
   await expect(page).toHaveURL(/\/onboarding$/);
+
+  return { email, userId };
 }
 
 async function checkEligibilityOption(
@@ -80,6 +90,10 @@ function getLocalDateInputValue(date = new Date()) {
 
 test.describe("auth identity shell", () => {
   test.describe.configure({ mode: "serial" });
+
+  test.afterAll(async () => {
+    await prisma.$disconnect();
+  });
 
   test("sign-in page renders passwordless Magic Link form", async ({ page }) => {
     await page.goto("/sign-in");
@@ -357,7 +371,7 @@ test.describe("auth identity shell", () => {
   test("checkout CTA uses dev fallback and reaches success page", async ({
     page,
   }) => {
-    await signInForOnboarding(page);
+    const { userId } = await signInForOnboarding(page);
     await waitForEligibilityGate(page);
     await continueToRecoveryProfile(page);
 
@@ -382,15 +396,32 @@ test.describe("auth identity shell", () => {
     await checkoutButton.click();
 
     await expect(page).toHaveURL(
-      /\/onboarding\/checkout\/success\?session_id=dev_mock/
+      /\/onboarding\/checkout\/success\?session_id=dev_mock/,
+      { timeout: 60000 }
     );
     await expect(
-      page.getByRole("heading", { name: "We are confirming your payment" })
+      page.getByRole("heading", { name: "Your 14-day plan is ready" })
+    ).toBeVisible({ timeout: 60000 });
+    await expect(
+      page.getByText(/your first recovery day is ready to open/i)
     ).toBeVisible();
     await expect(
-      page.getByText(/personalized plan will be unlocked shortly/i)
+      page.getByRole("link", { name: "Open Day 1" })
     ).toBeVisible();
-    await expect(page.getByText(/Day 1 program is shown yet/i)).toBeVisible();
+
+    const program = await prisma.program.findFirst({
+      where: { userId },
+      include: { days: true },
+    });
+    const dayOne = program?.days.find((day) => day.dayIndex === 1);
+
+    expect(program?.templateVersion).toBe("finger-v1");
+    expect(program?.days).toHaveLength(14);
+    expect(dayOne?.contentJson).toMatchObject({
+      title: "Day 1: Begin gentle motion",
+      exerciseSlugs: expect.arrayContaining(["gentle-finger-bends"]),
+      faqSlugs: expect.arrayContaining(["finger-swelling-after-cast"]),
+    });
   });
 
   test("authenticated users see checkout cancelled recovery paths", async ({

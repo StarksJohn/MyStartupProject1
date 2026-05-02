@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { getAuthSession } from "@/lib/auth/session";
+import {
+  getCheckoutUnlockState,
+  provisionDevMockPurchaseAndProgram,
+} from "@/lib/program/provisioning-service";
 
 interface CheckoutSuccessPageProps {
   searchParams: Promise<{
@@ -20,6 +24,16 @@ export default async function CheckoutSuccessPage({
   }
 
   const { session_id: checkoutSessionId } = await searchParams;
+  const unlockState =
+    checkoutSessionId === "dev_mock"
+      ? await provisionDevMockPurchaseAndProgram(session.user.id)
+      : checkoutSessionId
+        ? await getCheckoutUnlockState({
+            userId: session.user.id,
+            checkoutSessionId,
+          })
+        : { purchaseId: null, program: null };
+  const isPlanReady = Boolean(unlockState.program);
 
   return (
     <main className="container py-10 sm:py-14">
@@ -28,12 +42,14 @@ export default async function CheckoutSuccessPage({
           Checkout success
         </p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-          We are confirming your payment
+          {isPlanReady
+            ? "Your 14-day plan is ready"
+            : "We are confirming your payment"}
         </h1>
         <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-          Your personalized plan will be unlocked shortly after the payment is
-          confirmed. The next story will connect Stripe webhook unlock and plan
-          creation, so no Day 1 program is shown yet.
+          {isPlanReady
+            ? "Your payment is confirmed and your first recovery day is ready to open. Continue to Day 1 when you are ready."
+            : "Your personalized plan will be unlocked shortly after the payment is confirmed. If this page stays pending, wait a moment and refresh after Stripe finishes processing."}
         </p>
 
         {checkoutSessionId ? (
@@ -44,14 +60,21 @@ export default async function CheckoutSuccessPage({
         ) : null}
 
         <div className="mt-6 rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
-          Do not reload to retry payment from this page. If you need help, return
-          to onboarding or contact support when the support flow is available.
+          {isPlanReady
+            ? "This page only confirms unlock. The full Day experience lands in the next stories."
+            : "Do not reload to retry payment from this page. If you need help, return to onboarding or contact support when the support flow is available."}
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Button asChild>
-            <Link href="/onboarding">Back to onboarding</Link>
-          </Button>
+          {isPlanReady ? (
+            <Button asChild>
+              <Link href="/day/1">Open Day 1</Link>
+            </Button>
+          ) : (
+            <Button asChild>
+              <Link href="/onboarding">Back to onboarding</Link>
+            </Button>
+          )}
           <Button variant="outline" asChild>
             <Link href="/">Back to landing page</Link>
           </Button>

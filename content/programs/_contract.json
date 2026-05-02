@@ -1,0 +1,25 @@
+{
+  "purpose": "Canonical source for versioned 14-day program templates.",
+  "status": "contract-placeholder",
+  "futureFiles": ["finger-v1.json", "metacarpal-v1.json"],
+  "requiredShape": {
+    "templateVersion": "string",
+    "bodyPart": "finger | metacarpal",
+    "stages": ["string"],
+    "days": [
+      {
+        "dayIndex": "number 1-14",
+        "stage": "string",
+        "focus": "string",
+        "exerciseSlugs": ["string"],
+        "safetyNotes": ["string"],
+        "faqSlugs": ["string"],
+        "estimatedMinutes": "number"
+      }
+    ]
+  },
+  "boundaries": [
+    "No diagnosis, medical clearance, or physician-replacement claims.",
+    "No AI-generated final program content in this story."
+  ]
+}

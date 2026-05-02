@@ -1,0 +1,78 @@
+[
+  {
+    "slug": "gentle-finger-bends",
+    "title": "Gentle finger bends",
+    "bodyPart": "finger",
+    "stage": "early_mobility",
+    "instructions": [
+      "Rest your forearm on a table with your hand relaxed.",
+      "Slowly bend the affected finger only as far as comfortable.",
+      "Straighten the finger again without forcing the joint."
+    ],
+    "contraindications": [
+      "Stop if pain becomes severe, the finger changes color, or numbness appears.",
+      "Follow any limits your clinician gave after cast or splint removal."
+    ],
+    "durationSeconds": 60,
+    "repetitions": "5-8 gentle bends",
+    "videoUrl": null,
+    "thumbnailUrl": null
+  },
+  {
+    "slug": "tendon-glide-light",
+    "title": "Light tendon glide sequence",
+    "bodyPart": "finger",
+    "stage": "early_mobility",
+    "instructions": [
+      "Move from a straight hand to a gentle hook shape.",
+      "Return to straight, then make a light fist if comfortable.",
+      "Keep the motion slow and avoid gripping hard."
+    ],
+    "contraindications": [
+      "Do not continue through sharp pain or sudden swelling.",
+      "Skip any shape your clinician told you to avoid."
+    ],
+    "durationSeconds": 90,
+    "repetitions": "3-5 slow rounds",
+    "videoUrl": null,
+    "thumbnailUrl": null
+  },
+  {
+    "slug": "tabletop-finger-lifts",
+    "title": "Tabletop finger lifts",
+    "bodyPart": "finger",
+    "stage": "gentle_strengthening",
+    "instructions": [
+      "Place your palm flat on a table.",
+      "Lift the affected finger slightly, then lower it with control.",
+      "Keep the rest of the hand relaxed."
+    ],
+    "contraindications": [
+      "Do not use weights or resistance in this version.",
+      "Stop and contact a clinician if movement suddenly becomes worse."
+    ],
+    "durationSeconds": 60,
+    "repetitions": "5 gentle lifts",
+    "videoUrl": null,
+    "thumbnailUrl": null
+  },
+  {
+    "slug": "soft-object-touch",
+    "title": "Soft object touch practice",
+    "bodyPart": "metacarpal",
+    "stage": "gentle_strengthening",
+    "instructions": [
+      "Touch a soft towel or sponge with the affected hand.",
+      "Practice a light touch without squeezing.",
+      "Relax the hand fully between attempts."
+    ],
+    "contraindications": [
+      "Do not grip hard or use resistance bands.",
+      "Stop if swelling, color change, or numbness appears."
+    ],
+    "durationSeconds": 60,
+    "repetitions": "5-8 light touches",
+    "videoUrl": null,
+    "thumbnailUrl": null
+  }
+]

@@ -6,6 +6,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || "http://localhost:3000";
+const stripeWebhookSecret =
+  process.env.STRIPE_WEBHOOK_SECRET || "whsec_playwright_test";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -57,6 +59,10 @@ export default defineConfig({
           url: baseURL,
           reuseExistingServer: !process.env.CI,
           timeout: 120 * 1000,
+          env: {
+            ...process.env,
+            STRIPE_WEBHOOK_SECRET: stripeWebhookSecret,
+          },
         },
       }),
 });

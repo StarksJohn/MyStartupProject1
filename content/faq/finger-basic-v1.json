@@ -1,0 +1,32 @@
+[
+  {
+    "slug": "finger-swelling-after-cast",
+    "source": "FAQ",
+    "bodyPart": "finger",
+    "phase": "post_cast_early",
+    "riskLevel": "low",
+    "question": "Is mild swelling after cast removal expected?",
+    "answer": "Mild swelling can happen after immobilization. Keep movements gentle, follow clinician instructions, and seek care if swelling is sudden, severe, or comes with color change, fever, numbness, pus, or worsening pain.",
+    "escalationRequired": false
+  },
+  {
+    "slug": "finger-stiffness-window",
+    "source": "FAQ",
+    "bodyPart": "finger",
+    "phase": "post_cast_early",
+    "riskLevel": "low",
+    "question": "Why does the first two weeks after cast removal feel important?",
+    "answer": "The first two weeks often feel confusing because the finger is stiff and daily use is still limited. A simple daily structure can help you move consistently without replacing clinician care.",
+    "escalationRequired": false
+  },
+  {
+    "slug": "when-to-contact-clinician",
+    "source": "FAQ",
+    "bodyPart": "general",
+    "phase": "any",
+    "riskLevel": "escalation",
+    "question": "When should I contact a clinician instead of continuing exercises?",
+    "answer": "Stop and contact a clinician promptly for severe pain, numbness, blue or purple color change, fever, pus, sudden swelling, inability to move, or symptoms that feel worse than your clinician said to expect.",
+    "escalationRequired": true
+  }
+]

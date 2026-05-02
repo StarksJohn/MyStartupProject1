@@ -1,0 +1,18 @@
+{
+  "purpose": "Canonical source for curated FAQ entries used by Day pages, support copy, and later RAG chunks.",
+  "status": "contract-placeholder",
+  "requiredShape": {
+    "slug": "string",
+    "source": "AAOS | NHS | GUZHE | FAQ | BLOG",
+    "bodyPart": "finger | metacarpal | general",
+    "phase": "string",
+    "riskLevel": "low | medium | escalation",
+    "question": "string",
+    "answer": "string",
+    "escalationRequired": "boolean"
+  },
+  "boundaries": [
+    "Answers must preserve educational-support positioning.",
+    "Escalation entries must direct users to clinician care instead of self-treatment."
+  ]
+}

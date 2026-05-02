@@ -1,0 +1,22 @@
+{
+  "purpose": "Reserved source location for future long-form public content inputs.",
+  "status": "contract-placeholder",
+  "currentRuntimeSource": "src/lib/content/blog.ts",
+  "requiredShapeIfMovedHereLater": {
+    "slug": "string",
+    "title": "string",
+    "description": "string",
+    "publishedAt": "YYYY-MM-DD",
+    "keywords": ["string"],
+    "sections": [
+      {
+        "heading": "string",
+        "body": ["string"]
+      }
+    ]
+  },
+  "boundaries": [
+    "Do not duplicate the current blog runtime source in this story.",
+    "Future migration must update the content loader intentionally."
+  ]
+}
