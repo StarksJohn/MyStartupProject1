@@ -21,6 +21,10 @@ export interface CurrentProgramEntry {
     title: string;
     focus: string;
     summary: string;
+    normalSignals: string[];
+    getHelpSignals: string[];
+    safetyNotes: string[];
+    personalizationFlags: string[];
     completedAt: Date | null;
     completionPercent: number;
   };
@@ -41,6 +45,10 @@ interface ContentSummary {
   title: string;
   focus: string;
   summary: string;
+  normalSignals: string[];
+  getHelpSignals: string[];
+  safetyNotes: string[];
+  personalizationFlags: string[];
 }
 
 function clampDayIndex(dayIndex: number) {
@@ -49,7 +57,15 @@ function clampDayIndex(dayIndex: number) {
 
 function readContentSummary(contentJson: Prisma.JsonValue | null): ContentSummary {
   if (!contentJson || typeof contentJson !== "object" || Array.isArray(contentJson)) {
-    return { title: "", focus: "", summary: "" };
+    return {
+      title: "",
+      focus: "",
+      summary: "",
+      normalSignals: [],
+      getHelpSignals: [],
+      safetyNotes: [],
+      personalizationFlags: [],
+    };
   }
 
   const record = contentJson as Record<string, unknown>;
@@ -58,7 +74,19 @@ function readContentSummary(contentJson: Prisma.JsonValue | null): ContentSummar
     title: typeof record.title === "string" ? record.title : "",
     focus: typeof record.focus === "string" ? record.focus : "",
     summary: typeof record.summary === "string" ? record.summary : "",
+    normalSignals: readStringArray(record.normalSignals),
+    getHelpSignals: readStringArray(record.getHelpSignals),
+    safetyNotes: readStringArray(record.safetyNotes),
+    personalizationFlags: readStringArray(record.personalizationFlags),
   };
+}
+
+function readStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === "string");
 }
 
 interface LoadedActiveProgram {
@@ -125,6 +153,10 @@ async function loadActiveProgramEntry(
           title: "",
           focus: "",
           summary: "",
+          normalSignals: [],
+          getHelpSignals: [],
+          safetyNotes: [],
+          personalizationFlags: [],
           completedAt: null,
           completionPercent: 0,
         },
@@ -150,6 +182,10 @@ async function loadActiveProgramEntry(
         title: summary.title,
         focus: summary.focus,
         summary: summary.summary,
+        normalSignals: summary.normalSignals,
+        getHelpSignals: summary.getHelpSignals,
+        safetyNotes: summary.safetyNotes,
+        personalizationFlags: summary.personalizationFlags,
         completedAt: currentProgramDay.completedAt,
         completionPercent: currentProgramDay.completionPercent,
       },

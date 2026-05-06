@@ -25,6 +25,29 @@ function parseDayParam(rawDay: string): number | null {
   return parsed;
 }
 
+function formatStage(stage: string) {
+  return stage
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function getCompletionLabel(completionPercent: number, completedAt: Date | null) {
+  if (completedAt) {
+    return "Completed";
+  }
+
+  if (completionPercent > 0) {
+    return `${completionPercent}% complete`;
+  }
+
+  return "Not started";
+}
+
+const defaultSafetyBoundary =
+  "This is educational guidance, not a diagnosis or treatment plan. Stop and contact a clinician if you notice severe pain, numbness, color change, fever, pus, sudden swelling, or inability to move.";
+
 export default async function DayPage({ params }: DayPageProps) {
   const { day: rawDay } = await params;
   const session = await getAuthSession();
@@ -60,58 +83,164 @@ export default async function DayPage({ params }: DayPageProps) {
   const isCurrentDay = requestedDay === program.currentDay;
 
   return (
-    <main className="container py-10 sm:py-14">
+    <main className="container py-8 sm:py-12">
       <section
-        data-testid={isCurrentDay ? "current-day-placeholder" : "past-day-placeholder"}
-        className="mx-auto max-w-3xl rounded-2xl border bg-card p-5 shadow-xs sm:p-8"
+        data-testid={isCurrentDay ? "day-current-shell" : "day-review-shell"}
+        className="mx-auto max-w-3xl space-y-5"
       >
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Day {requestedDay} of {program.totalDays}
-        </p>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-          {isCurrentDay
-            ? programDay.title || `Day ${requestedDay}`
-            : `Day ${requestedDay} recap is coming soon`}
-        </h1>
+        <section
+          data-testid="day-recovery-header"
+          className="rounded-2xl border bg-card p-5 shadow-xs sm:p-8"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {isCurrentDay ? "Today's recovery plan" : "Review mode"}
+              </p>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+                Day {requestedDay} of {program.totalDays}
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {isCurrentDay
+                  ? "Start with the focus below before moving into the detailed actions in the next stories."
+                  : `This read-only review keeps today's active task on Day ${program.currentDay}.`}
+              </p>
+            </div>
+
+            <div className="rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+              <div className="font-medium text-foreground">
+                {getCompletionLabel(
+                  programDay.completionPercent,
+                  programDay.completedAt
+                )}
+              </div>
+              <div className="mt-1">Template: {program.templateVersion}</div>
+            </div>
+          </div>
+
+          <div className="mt-6" aria-label="Program progress">
+            <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span>Overall progress</span>
+              <span>{program.currentDay}/{program.totalDays}</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{
+                  width: `${Math.round((program.currentDay / program.totalDays) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-3 gap-3 text-sm">
+            <div className="rounded-xl border bg-muted/30 p-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Stage
+              </div>
+              <div className="mt-1 font-medium">
+                {formatStage(programDay.stage)}
+              </div>
+            </div>
+            <div className="rounded-xl border bg-muted/30 p-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Estimated time
+              </div>
+              <div className="mt-1 font-medium">
+                {programDay.estimatedMinutes}
+                {" minutes"}
+              </div>
+            </div>
+            <div className="rounded-xl border bg-muted/30 p-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Day state
+              </div>
+              <div className="mt-1 font-medium">
+                {isCurrentDay ? "Current task" : "Read-only review"}
+              </div>
+            </div>
+          </div>
+        </section>
 
         {isCurrentDay ? (
           <>
-            <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-              {programDay.summary ||
-                "Your full Day experience launches in the next story. For now, this is the entry point that knows where you are in the plan."}
-            </p>
-            <div className="mt-6 grid gap-4 rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground sm:grid-cols-2">
-              <div>
-                <span className="font-medium text-foreground">Stage:</span>{" "}
-                {programDay.stage}
+            <section
+              data-testid="today-focus"
+              className="rounded-2xl border bg-card p-5 shadow-xs sm:p-8"
+            >
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Today&apos;s Focus
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                {programDay.title}
+              </h2>
+              <p className="mt-3 text-base font-medium">{programDay.focus}</p>
+              {programDay.summary ? (
+                <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
+                  {programDay.summary}
+                </p>
+              ) : null}
+
+              <div className="mt-5 rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  Safety boundary:
+                </span>{" "}
+                {programDay.safetyNotes[0] ?? defaultSafetyBoundary}
               </div>
-              <div>
-                <span className="font-medium text-foreground">Focus:</span>{" "}
-                {programDay.focus || "—"}
-              </div>
-              <div>
-                <span className="font-medium text-foreground">Estimated minutes:</span>{" "}
-                {programDay.estimatedMinutes}
-              </div>
-              <div>
-                <span className="font-medium text-foreground">Template:</span>{" "}
-                {program.templateVersion}
-              </div>
-            </div>
+
+              {programDay.normalSignals.length > 0 ||
+              programDay.getHelpSignals.length > 0 ? (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border bg-muted/30 p-4">
+                    <h3 className="text-sm font-semibold">
+                      What can be normal today
+                    </h3>
+                    <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                      {(programDay.normalSignals.length > 0
+                        ? programDay.normalSignals
+                        : ["Mild stiffness can be expected during gentle practice."]
+                      ).map((signal) => (
+                        <li key={signal}>- {signal}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-xl border bg-muted/30 p-4">
+                    <h3 className="text-sm font-semibold">
+                      Stop and contact a clinician
+                    </h3>
+                    <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                      {(programDay.getHelpSignals.length > 0
+                        ? programDay.getHelpSignals
+                        : ["Severe pain, numbness, color change, fever, pus, sudden swelling, or inability to move."]
+                      ).map((signal) => (
+                        <li key={signal}>- {signal}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+
+            <section className="rounded-2xl border border-dashed bg-muted/20 p-5 text-sm text-muted-foreground">
+              Exercise cards, completion controls, and AI questions arrive in
+              the next Epic 4 stories. This page currently focuses on today&apos;s
+              orientation and safety framing.
+            </section>
           </>
         ) : (
-          <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            We will surface past-day recaps and exercises in a later story. For
-            now, the active day is Day {program.currentDay}.
-          </p>
+          <section className="rounded-2xl border bg-card p-5 shadow-xs sm:p-8">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Day {requestedDay} review
+            </h2>
+            <p className="mt-3 text-sm text-muted-foreground sm:text-base">
+              Past-day detail view is read-only for now. The active day is Day{" "}
+              {program.currentDay}, and full review behavior is delivered in a
+              later story.
+            </p>
+          </section>
         )}
 
-        <div className="mt-6 rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
-          This is a minimal placeholder. The full recovery day surface (videos,
-          exercises, FAQs, completion) is delivered in upcoming stories.
-        </div>
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col gap-3 sm:flex-row">
           {!isCurrentDay ? (
             <Button asChild>
               <Link href={`/day/${program.currentDay}`}>

@@ -22,6 +22,7 @@ interface SeededProgramOptions {
   withProfile?: boolean;
   withProgram?: boolean;
   currentDay?: number;
+  programStatus?: ProgramStatus;
   programDayContent?: Prisma.InputJsonValue | null;
 }
 
@@ -106,7 +107,7 @@ async function seedPaidPurchaseAndProgram(
       startDate: new Date(),
       endDate: new Date(),
       currentDay: options.currentDay ?? 1,
-      status: ProgramStatus.ACTIVE,
+      status: options.programStatus ?? ProgramStatus.ACTIVE,
       generatedSummaryJson: {
         source: "program-entry-test",
       },
@@ -117,6 +118,11 @@ async function seedPaidPurchaseAndProgram(
     title: `Day ${options.currentDay ?? 1}: Begin gentle motion`,
     focus: "Gentle finger flexion warm-up",
     summary: "Short, low-load motion to start the day.",
+    normalSignals: ["Mild stiffness during gentle motion"],
+    getHelpSignals: ["Severe pain", "Numbness"],
+    safetyNotes: [
+      "Stop and contact a clinician for severe pain, numbness, color change, fever, pus, sudden swelling, or inability to move.",
+    ],
     exerciseSlugs: ["gentle-finger-bends"],
     faqSlugs: ["finger-swelling-after-cast"],
   };
@@ -219,6 +225,11 @@ test.describe("program entry", () => {
         title: "Day 5: Build active range",
         focus: "Active flexion practice",
         summary: "Add a controlled active range block.",
+        normalSignals: ["Light fatigue after careful practice"],
+        getHelpSignals: ["Severe pain", "Sudden swelling"],
+        safetyNotes: [
+          "Stop and contact a clinician for severe pain, numbness, color change, fever, pus, sudden swelling, or inability to move.",
+        ],
         exerciseSlugs: ["gentle-finger-bends"],
         faqSlugs: ["finger-swelling-after-cast"],
       },
@@ -234,15 +245,45 @@ test.describe("program entry", () => {
     expect(body.program.templateVersion).toBe("finger-v1");
     expect(body.program.currentProgramDay.dayIndex).toBe(5);
     expect(body.program.currentProgramDay.title).toContain("Day 5");
+    expect(body.program.currentProgramDay.normalSignals).toEqual([
+      "Light fatigue after careful practice",
+    ]);
+    expect(body.program.currentProgramDay.getHelpSignals).toEqual([
+      "Severe pain",
+      "Sudden swelling",
+    ]);
+    expect(body.program.currentProgramDay.safetyNotes[0]).toContain(
+      "Stop and contact a clinician"
+    );
 
     await page.goto("/progress");
     await expect(page).toHaveURL(/\/day\/5$/);
     await expect(
-      page.getByRole("heading", { name: /Day 5/ })
+      page.getByRole("heading", { name: "Day 5 of 14" })
+    ).toBeVisible();
+    await expect(page.getByTestId("day-recovery-header")).toBeVisible();
+    await expect(page.getByText("Overall progress")).toBeVisible();
+    await expect(page.getByText("5/14")).toBeVisible();
+    await expect(page.getByText("Early Mobility")).toBeVisible();
+    await expect(page.getByText("12 minutes")).toBeVisible();
+    await expect(page.getByTestId("today-focus")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Day 5: Build active range" })
     ).toBeVisible();
     await expect(
-      page.getByTestId("current-day-placeholder")
+      page.getByText("Active flexion practice")
     ).toBeVisible();
+    await expect(page.getByText("Add a controlled active range block.")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Stop and contact a clinician" })
+    ).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/day/5");
+    await expect(page.getByTestId("day-recovery-header")).toBeInViewport();
+    await expect(page.getByTestId("today-focus")).toBeInViewport({
+      ratio: 0.2,
+    });
   });
 
   test("future day requests redirect back to current day", async ({ page }) => {
@@ -317,6 +358,37 @@ test.describe("program entry", () => {
     await expect(page.getByTestId("progress-fallback")).toBeVisible();
   });
 
+  test("malformed current day content falls back safely", async ({ page }) => {
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + API coverage only runs once."
+    );
+
+    const email = `dev-malformed-day-${Date.now()}@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 6,
+      programDayContent: {
+        focus: "Focus exists but required title is missing",
+        summary: "This malformed content should not render as advice.",
+      },
+    });
+    await signInAs(page, email);
+
+    const apiResponse = await page.request.get("/api/program/current");
+    expect(apiResponse.status()).toBe(200);
+    await expect(apiResponse.json()).resolves.toMatchObject({
+      status: "missing_day_content",
+      currentDay: 6,
+      redirectTo: "/onboarding",
+    });
+
+    await page.goto("/day/6");
+    await expect(page).toHaveURL(/\/progress$/);
+    await expect(page.getByTestId("progress-fallback")).toBeVisible();
+  });
+
   test("paid purchase without program auto-recovers when profile exists", async ({
     page,
   }) => {
@@ -346,6 +418,37 @@ test.describe("program entry", () => {
     });
     expect(program?.days).toHaveLength(14);
     expect(program?.templateVersion).toBe("finger-v1");
+  });
+
+  test("paid purchase with inactive program restores active program", async ({
+    page,
+  }) => {
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + API coverage only runs once."
+    );
+
+    const email = `dev-inactive-program-${Date.now()}@example.com`;
+    const userId = await seedDevUser(email);
+    const { programId } = await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 2,
+      programStatus: ProgramStatus.EXPIRED,
+    });
+    await signInAs(page, email);
+
+    const apiResponse = await page.request.get("/api/program/current");
+    expect(apiResponse.status()).toBe(200);
+    const body = await apiResponse.json();
+    expect(body.status).toBe("missing_program_recovered");
+    expect(body.program.currentDay).toBe(2);
+
+    const restoredProgram = await prisma.program.findUniqueOrThrow({
+      where: { id: programId ?? "" },
+      include: { days: true },
+    });
+    expect(restoredProgram.status).toBe(ProgramStatus.ACTIVE);
+    expect(restoredProgram.days).toHaveLength(14);
   });
 
   test("paid purchase without profile returns safe missing_profile fallback", async ({

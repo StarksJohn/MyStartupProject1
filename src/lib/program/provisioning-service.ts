@@ -256,6 +256,7 @@ export async function provisionProgramForPaidPurchase(
         templateVersion: generatedProgram.templateVersion,
         generatedSummaryJson: generatedProgram.generatedSummaryJson,
         currentDay: clampCurrentDay(purchase.program.currentDay),
+        status: ProgramStatus.ACTIVE,
       },
       select: {
         id: true,
@@ -323,6 +324,7 @@ export async function provisionProgramForPaidPurchase(
       templateVersion: generatedProgram.templateVersion,
       generatedSummaryJson: generatedProgram.generatedSummaryJson,
       currentDay: clampCurrentDay(program.currentDay),
+      status: ProgramStatus.ACTIVE,
     },
     select: {
       id: true,

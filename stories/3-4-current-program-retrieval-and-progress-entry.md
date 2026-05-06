@@ -1,6 +1,6 @@
 # Story 3.4: Current Program Retrieval and Progress Entry
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -281,10 +281,11 @@ GPT-5.5
   - Updated `src/app/(app)/onboarding/checkout/success/page.tsx` to use `unlockState.program?.currentDay` for the "Open Day {n}" CTA, preserving dev-mock behavior and checkout reference copy.
   - Did not modify session/JWT shape: detailed program data stays server-side or behind `GET /api/program/current` (AC7 honored).
   - Review patch: fixed active paid programs whose `Program.currentDay` points to a missing `ProgramDay` row so they return `missing_day_content` instead of falling through to `no_purchase`; added focused regression coverage for the API and `/day/{currentDay}` fallback.
+  - Review patch: fixed paid purchases whose existing program is inactive (`EXPIRED` / `COMPLETED`) so the approved recovery path restores the program to `ACTIVE` instead of reusing an inactive program and then falling back incorrectly; added focused regression coverage for this repair path.
 - Validation:
   - `pnpm typecheck` passed.
   - `pnpm lint` passed.
-  - `pnpm test:e2e e2e/program-entry.spec.ts` (Desktop Chrome): 9/9 passed (401 on unauthenticated, no_purchase fallback, paid currentDay > 1 routing to `/day/5`, future-day clamp, invalid day fallback, missing current day row -> `missing_day_content`, missing-program recovery, missing-profile fallback, unauthenticated `/progress` and `/day/[day]` redirect to sign-in).
+  - `pnpm test:e2e e2e/program-entry.spec.ts` (Desktop Chrome): 10/10 passed (401 on unauthenticated, no_purchase fallback, paid currentDay > 1 routing to `/day/5`, future-day clamp, invalid day fallback, missing current day row -> `missing_day_content`, missing-program recovery, inactive program restoration, missing-profile fallback, unauthenticated `/progress` and `/day/[day]` redirect to sign-in).
   - `pnpm test:e2e e2e/auth-shell.spec.ts` (Desktop Chrome): 15/15 passed (no regression on sign-in, onboarding, eligibility gate, recovery profile, dev checkout success, cancelled flow).
   - `pnpm test:e2e e2e/stripe-webhook.spec.ts` (Desktop Chrome): 7/7 passed (no regression on webhook signature, idempotency, placeholder upgrade, missing profile, refund flows).
 
@@ -304,3 +305,4 @@ GPT-5.5
 
 - 2026-05-06: Implemented Story 3.4 (T1-T6); story marked `review` after focused E2E + auth-shell + stripe-webhook regressions all green.
 - 2026-05-06: Addressed lightweight review finding for missing current-day row fallback; `pnpm typecheck`, `pnpm lint`, and `pnpm test:e2e e2e/program-entry.spec.ts --project="Desktop Chrome"` pass.
+- 2026-05-06: Addressed lightweight review finding for inactive program recovery; `pnpm typecheck`, `pnpm lint`, `pnpm test:e2e e2e/program-entry.spec.ts --project="Desktop Chrome"`, `pnpm test:e2e e2e/stripe-webhook.spec.ts --project="Desktop Chrome"`, and `pnpm test:e2e e2e/auth-shell.spec.ts --project="Desktop Chrome"` pass. Story marked `done`.

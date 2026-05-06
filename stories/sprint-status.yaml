@@ -32,15 +32,15 @@ development_status:
   epic-2-retrospective: done
 
   # --- Epic 3: Receive a Personalized 14-Day Program ---
-  epic-3: in-progress
+  epic-3: done
   3-1-program-domain-models-and-provisioning-inputs: done
   3-2-stripe-webhook-unlock-and-program-creation: done
   3-3-template-first-program-generation: done
-  3-4-current-program-retrieval-and-progress-entry: code-review
+  3-4-current-program-retrieval-and-progress-entry: done
 
   # --- Epic 4: Complete Daily Recovery Actions with Confidence ---
-  epic-4: backlog
-  4-1-day-header-and-todays-focus: backlog
+  epic-4: in-progress
+  4-1-day-header-and-todays-focus: code-review
   4-2-exercise-cards-and-completion-state: backlog
   4-3-day-completion-and-progress-update: backlog
   4-4-locked-review-and-missing-content-states: backlog
