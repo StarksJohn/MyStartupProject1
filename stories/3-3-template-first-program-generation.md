@@ -1,6 +1,6 @@
 # Story 3.3: Template-First Program Generation
 
-Status: code-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -293,6 +293,8 @@ GPT-5.5
 - Updated provisioning so webhook and dev-mock unlocks write `finger-v1` template content, backfill existing placeholder programs idempotently, and preserve `completionPercent` / `completedAt`.
 - Extended focused Playwright coverage for loader validation, unresolved references, Stripe webhook template content, placeholder backfill, and dev-mock template content.
 - Validation passed: `pnpm db:generate`, `pnpm typecheck`, `pnpm lint`, `pnpm test:e2e e2e/stripe-webhook.spec.ts`, and `pnpm test:e2e e2e/auth-shell.spec.ts`.
+- Code review patch completed: ProgramDay writes now upsert by `[programId, dayIndex]` and remove invalid non-template days, safety notes always include clinician-escalation language, exercise bodyPart references are validated, and tests cover missing FAQ refs plus invalid extra placeholder days.
+- Review patch validation passed: `pnpm typecheck`, `pnpm lint`, `pnpm test:e2e e2e/stripe-webhook.spec.ts`, and `pnpm test:e2e e2e/auth-shell.spec.ts`.
 
 ### File List
 
@@ -311,3 +313,4 @@ GPT-5.5
 ### Change Log
 
 - 2026-05-02: Implemented template-first program generation and moved Story 3.3 to code-review.
+- 2026-05-02: Completed lightweight code review patches and moved Story 3.3 to done.

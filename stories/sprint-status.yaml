@@ -13,7 +13,7 @@
 # 排序规则：按 epic 升序、story 升序；本文件顺序即 create-story 自动发现顺序。
 
 project: Fracture Recovery AI Companion
-last_updated: 2026-05-02
+last_updated: 2026-05-06
 
 development_status:
   # --- Epic 1: Discover and Trust the Recovery Coach ---
@@ -35,8 +35,8 @@ development_status:
   epic-3: in-progress
   3-1-program-domain-models-and-provisioning-inputs: done
   3-2-stripe-webhook-unlock-and-program-creation: done
-  3-3-template-first-program-generation: code-review
-  3-4-current-program-retrieval-and-progress-entry: backlog
+  3-3-template-first-program-generation: done
+  3-4-current-program-retrieval-and-progress-entry: code-review
 
   # --- Epic 4: Complete Daily Recovery Actions with Confidence ---
   epic-4: backlog

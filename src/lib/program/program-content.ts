@@ -14,6 +14,8 @@ const dangerSignals = [
   "sudden swelling",
   "inability to move",
 ];
+const standardEscalationSafetyNote =
+  "Stop and contact a clinician for severe pain, numbness, blue or purple color change, fever, pus, sudden swelling, inability to move, or symptoms that worsen instead of settling.";
 
 const programDaySchema = z.object({
   dayIndex: z.number().int().min(1).max(totalProgramDays),
@@ -82,6 +84,7 @@ export interface ProgramContentBundle {
 export interface RecoveryProfileForTemplate {
   bodyPart: string;
   subType: string;
+  castRemovedAt: Date;
   hasHardware: string;
   referredToPt: string;
   painLevel: number;
@@ -227,15 +230,26 @@ export function validateProgramContentReferences(bundle: ProgramContentBundle) {
 
   const exerciseSlugs = new Set(bundle.exercises.map((exercise) => exercise.slug));
   const faqSlugs = new Set(bundle.faqs.map((faq) => faq.slug));
+  const exerciseBySlug = new Map(
+    bundle.exercises.map((exercise) => [exercise.slug, exercise])
+  );
 
   for (const template of bundle.templates) {
     assertUniqueDays(template);
 
     for (const day of template.days) {
       for (const exerciseSlug of day.exerciseSlugs) {
-        if (!exerciseSlugs.has(exerciseSlug)) {
+        const exercise = exerciseBySlug.get(exerciseSlug);
+
+        if (!exerciseSlugs.has(exerciseSlug) || !exercise) {
           throw new Error(
             `Program template ${template.templateVersion} day ${day.dayIndex} references missing exercise slug: ${exerciseSlug}`
+          );
+        }
+
+        if (exercise.bodyPart !== template.bodyPart) {
+          throw new Error(
+            `Program template ${template.templateVersion} day ${day.dayIndex} references ${exercise.bodyPart} exercise ${exerciseSlug} from ${template.bodyPart} template.`
           );
         }
       }
@@ -297,8 +311,29 @@ export function selectProgramTemplate(
   return exactTemplate ?? fallbackTemplate!;
 }
 
+function hasRiskFlags(riskFlagsJson: Prisma.JsonValue | null) {
+  if (!riskFlagsJson || typeof riskFlagsJson !== "object") {
+    return false;
+  }
+
+  if (Array.isArray(riskFlagsJson)) {
+    return riskFlagsJson.length > 0;
+  }
+
+  return Object.values(riskFlagsJson).some(Boolean);
+}
+
 function getPersonalizationFlags(profile: RecoveryProfileForTemplate) {
   const flags: string[] = [];
+  const daysSinceCastRemoval = Math.floor(
+    (Date.now() - profile.castRemovedAt.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (daysSinceCastRemoval < 0) {
+    flags.push("pre-removal planning caution");
+  } else if (daysSinceCastRemoval > totalProgramDays) {
+    flags.push("outside first-14-days reminder");
+  }
 
   if (profile.dominantHandAffected) {
     flags.push("dominant-hand daily-use caution");
@@ -314,6 +349,10 @@ function getPersonalizationFlags(profile: RecoveryProfileForTemplate) {
 
   if (profile.hasHardware === "yes" || profile.referredToPt === "yes") {
     flags.push("follow clinician-specific restrictions first");
+  }
+
+  if (hasRiskFlags(profile.riskFlagsJson)) {
+    flags.push("reported risk-flag caution");
   }
 
   return flags;
@@ -346,7 +385,10 @@ function createDayContentJson({
     profile.hasHardware === "yes"
       ? "Because hardware was reported, clinician-specific restrictions come before this educational plan."
       : null,
-  ].filter(Boolean);
+    hasRiskFlags(profile.riskFlagsJson)
+      ? "Because risk flags were reported, use this plan only as educational support and contact a clinician before continuing."
+      : null,
+  ].filter((caution): caution is string => Boolean(caution));
 
   return {
     templateVersion: template.templateVersion,
@@ -377,7 +419,13 @@ function createDayContentJson({
     })),
     normalSignals: day.normalSignals,
     getHelpSignals: [...new Set([...day.getHelpSignals, ...dangerSignals])],
-    safetyNotes: [...day.safetyNotes, ...profileCautions],
+    safetyNotes: [
+      ...new Set([
+        ...day.safetyNotes,
+        standardEscalationSafetyNote,
+        ...profileCautions,
+      ]),
+    ],
     personalizationFlags,
   };
 }

@@ -34,6 +34,7 @@ export default async function CheckoutSuccessPage({
           })
         : { purchaseId: null, program: null };
   const isPlanReady = Boolean(unlockState.program);
+  const currentDay = unlockState.program?.currentDay ?? 1;
 
   return (
     <main className="container py-10 sm:py-14">
@@ -68,7 +69,7 @@ export default async function CheckoutSuccessPage({
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           {isPlanReady ? (
             <Button asChild>
-              <Link href="/day/1">Open Day 1</Link>
+              <Link href={`/day/${currentDay}`}>Open Day {currentDay}</Link>
             </Button>
           ) : (
             <Button asChild>

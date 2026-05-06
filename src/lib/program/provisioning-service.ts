@@ -79,35 +79,24 @@ async function replaceTemplateProgramDays(
       },
     ])
   );
+  const generatedDayIndexes = generatedProgram.days.map((day) => day.dayIndex);
 
   for (const day of generatedProgram.days) {
-    await tx.programDay.updateMany({
+    const previousProgress = progressByDayIndex.get(day.dayIndex);
+
+    await tx.programDay.upsert({
       where: {
-        programId,
-        dayIndex: day.dayIndex,
+        programId_dayIndex: {
+          programId,
+          dayIndex: day.dayIndex,
+        },
       },
-      data: {
+      update: {
         stage: day.stage,
         contentJson: day.contentJson,
         estimatedMinutes: day.estimatedMinutes,
       },
-    });
-  }
-
-  const existingDayIndexes = new Set(existingDays.map((day) => day.dayIndex));
-  const missingDays = generatedProgram.days.filter(
-    (day) => !existingDayIndexes.has(day.dayIndex)
-  );
-
-  if (missingDays.length === 0) {
-    return;
-  }
-
-  await tx.programDay.createMany({
-    data: missingDays.map((day) => {
-      const previousProgress = progressByDayIndex.get(day.dayIndex);
-
-      return {
+      create: {
         programId,
         dayIndex: day.dayIndex,
         stage: day.stage,
@@ -115,8 +104,17 @@ async function replaceTemplateProgramDays(
         estimatedMinutes: day.estimatedMinutes,
         completedAt: previousProgress?.completedAt ?? null,
         completionPercent: previousProgress?.completionPercent ?? 0,
-      };
-    }),
+      },
+    });
+  }
+
+  await tx.programDay.deleteMany({
+    where: {
+      programId,
+      dayIndex: {
+        notIn: generatedDayIndexes,
+      },
+    },
   });
 }
 
@@ -199,6 +197,7 @@ export async function prepareTemplateFirstProgramForUser(
       userId: true,
       bodyPart: true,
       subType: true,
+      castRemovedAt: true,
       hasHardware: true,
       referredToPt: true,
       painLevel: true,

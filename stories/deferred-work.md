@@ -13,3 +13,8 @@ This file tracks deferred items raised during code review. Each section identifi
 - Program numeric/date check constraints and active-program service guards — defer to Story 3.2/3.3 provisioning and template generation, where real creation paths can enforce `currentDay`, `dayIndex`, `completionPercent`, date ordering, and active-program policy.
 - Executable pgvector extension migration/preflight — defer until the first database migration/schema-application step; `schema.prisma` documents `CREATE EXTENSION IF NOT EXISTS vector;`, but the repo does not yet have Prisma migrations.
 - Runtime content validation and `_contract.json` loader exclusion — defer until content loaders are introduced; future loaders should skip underscore-prefixed contract files and validate cross-file exercise/FAQ references.
+
+## Deferred from: code review of 3-3-template-first-program-generation (2026-05-02)
+
+- Standalone deployment content packaging — `src/lib/program/program-content.ts` reads `content/**` from disk at runtime. Verify or explicitly include `content/programs`, `content/exercises`, and `content/faq` in the production standalone artifact during deployment hardening.
+- Paid purchase without recovery profile repair path — current webhook behavior records the paid `Purchase` and leaves `Program` null if no `RecoveryProfile` exists. This is outside Story 3.3's normal onboarding path, but should be revisited before launch support tooling.

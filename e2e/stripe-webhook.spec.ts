@@ -154,6 +154,22 @@ test.describe("stripe webhook unlock", () => {
     expect(() => validateProgramContentReferences(invalidBundle)).toThrow(
       /missing exercise slug: missing-exercise-slug/
     );
+
+    const invalidFaqBundle: ProgramContentBundle = {
+      ...bundle,
+      templates: [
+        {
+          ...bundle.templates[0],
+          days: bundle.templates[0].days.map((day) =>
+            day.dayIndex === 1 ? { ...day, faqSlugs: ["missing-faq-slug"] } : day
+          ),
+        },
+      ],
+    };
+
+    expect(() => validateProgramContentReferences(invalidFaqBundle)).toThrow(
+      /missing FAQ slug: missing-faq-slug/
+    );
   });
 
   test("valid checkout webhook creates one paid purchase, program, and 14 days", async ({
@@ -197,6 +213,9 @@ test.describe("stripe webhook unlock", () => {
       faqSlugs: expect.arrayContaining(["finger-swelling-after-cast"]),
     });
     expect(JSON.stringify(dayOne?.contentJson)).toContain("severe pain");
+    expect(JSON.stringify(dayOne?.contentJson)).toContain(
+      "Stop and contact a clinician"
+    );
   });
 
   test("repeated checkout webhook delivery is idempotent", async ({
@@ -285,6 +304,19 @@ test.describe("stripe webhook unlock", () => {
         };
       }),
     });
+    await prisma.programDay.create({
+      data: {
+        programId: program.id,
+        dayIndex: 15,
+        stage: "placeholder",
+        contentJson: {
+          title: "Invalid extra placeholder day",
+          exerciseSlugs: [],
+          faqSlugs: [],
+        },
+        estimatedMinutes: 10,
+      },
+    });
     const event = checkoutCompletedEvent({
       eventId: uniqueId("evt_backfill"),
       checkoutSessionId,
@@ -303,6 +335,7 @@ test.describe("stripe webhook unlock", () => {
 
     expect(updatedProgram.templateVersion).toBe("finger-v1");
     expect(updatedProgram.days).toHaveLength(14);
+    expect(updatedProgram.days.map((day) => day.dayIndex)).not.toContain(15);
     expect(dayOne?.stage).toBe("early_mobility");
     expect(dayOne?.completionPercent).toBe(50);
     expect(dayOne?.completedAt).not.toBeNull();
