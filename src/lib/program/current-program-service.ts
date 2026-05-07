@@ -25,9 +25,20 @@ export interface CurrentProgramEntry {
     getHelpSignals: string[];
     safetyNotes: string[];
     personalizationFlags: string[];
+    exercises: DayExerciseCard[];
     completedAt: Date | null;
     completionPercent: number;
   };
+}
+
+export type ProgramDayEntry = CurrentProgramEntry["currentProgramDay"];
+
+export interface DayExerciseCard {
+  slug: string;
+  title: string;
+  durationLabel: string;
+  instructions: string[];
+  cautions: string[];
 }
 
 export type CurrentProgramState =
@@ -49,6 +60,7 @@ interface ContentSummary {
   getHelpSignals: string[];
   safetyNotes: string[];
   personalizationFlags: string[];
+  exercises: DayExerciseCard[];
 }
 
 function clampDayIndex(dayIndex: number) {
@@ -65,20 +77,26 @@ function readContentSummary(contentJson: Prisma.JsonValue | null): ContentSummar
       getHelpSignals: [],
       safetyNotes: [],
       personalizationFlags: [],
+      exercises: [],
     };
   }
 
   const record = contentJson as Record<string, unknown>;
 
   return {
-    title: typeof record.title === "string" ? record.title : "",
-    focus: typeof record.focus === "string" ? record.focus : "",
-    summary: typeof record.summary === "string" ? record.summary : "",
+    title: readString(record.title),
+    focus: readString(record.focus),
+    summary: readString(record.summary),
     normalSignals: readStringArray(record.normalSignals),
     getHelpSignals: readStringArray(record.getHelpSignals),
     safetyNotes: readStringArray(record.safetyNotes),
     personalizationFlags: readStringArray(record.personalizationFlags),
+    exercises: readExerciseCards(record.exercises),
   };
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function readStringArray(value: unknown) {
@@ -86,12 +104,146 @@ function readStringArray(value: unknown) {
     return [];
   }
 
-  return value.filter((item): item is string => typeof item === "string");
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function readExerciseCards(value: unknown): DayExerciseCard[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return [];
+    }
+
+    const record = item as Record<string, unknown>;
+    const slug = readString(record.slug);
+    const title = readString(record.title);
+
+    if (!slug || !title) {
+      return [];
+    }
+
+    const repetitions = readString(record.repetitions);
+    const durationSeconds =
+      typeof record.durationSeconds === "number" &&
+      Number.isInteger(record.durationSeconds) &&
+      record.durationSeconds > 0
+        ? record.durationSeconds
+        : null;
+    const durationLabel = [
+      repetitions,
+      durationSeconds ? `${Math.ceil(durationSeconds / 60)} min` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    return [
+      {
+        slug,
+        title,
+        durationLabel: durationLabel || "Gentle effort as tolerated",
+        instructions: readStringArray(record.instructions),
+        cautions: readStringArray(record.contraindications),
+      },
+    ];
+  });
 }
 
 interface LoadedActiveProgram {
   entry: CurrentProgramEntry;
   contentComplete: boolean;
+}
+
+function buildEmptyProgramDay(dayIndex: number): ProgramDayEntry {
+  return {
+    dayIndex,
+    stage: "",
+    estimatedMinutes: 0,
+    title: "",
+    focus: "",
+    summary: "",
+    normalSignals: [],
+    getHelpSignals: [],
+    safetyNotes: [],
+    personalizationFlags: [],
+    exercises: [],
+    completedAt: null,
+    completionPercent: 0,
+  };
+}
+
+function buildProgramDayEntry({
+  dayIndex,
+  stage,
+  estimatedMinutes,
+  contentJson,
+  completedAt,
+  completionPercent,
+}: {
+  dayIndex: number;
+  stage: string;
+  estimatedMinutes: number;
+  contentJson: Prisma.JsonValue | null;
+  completedAt: Date | null;
+  completionPercent: number;
+}): { entry: ProgramDayEntry; contentComplete: boolean } {
+  const summary = readContentSummary(contentJson);
+  const contentComplete = summary.title.length > 0 && summary.focus.length > 0;
+
+  return {
+    entry: {
+      dayIndex,
+      stage,
+      estimatedMinutes,
+      title: summary.title,
+      focus: summary.focus,
+      summary: summary.summary,
+      normalSignals: summary.normalSignals,
+      getHelpSignals: summary.getHelpSignals,
+      safetyNotes: summary.safetyNotes,
+      personalizationFlags: summary.personalizationFlags,
+      exercises: summary.exercises,
+      completedAt,
+      completionPercent,
+    },
+    contentComplete,
+  };
+}
+
+export async function loadProgramDayForProgram({
+  programId,
+  dayIndex,
+}: {
+  programId: string;
+  dayIndex: number;
+}): Promise<{ entry: ProgramDayEntry; contentComplete: boolean } | null> {
+  const programDay = await prisma.programDay.findUnique({
+    where: {
+      programId_dayIndex: {
+        programId,
+        dayIndex,
+      },
+    },
+    select: {
+      dayIndex: true,
+      stage: true,
+      estimatedMinutes: true,
+      contentJson: true,
+      completedAt: true,
+      completionPercent: true,
+    },
+  });
+
+  if (!programDay) {
+    return null;
+  }
+
+  return buildProgramDayEntry(programDay);
 }
 
 async function loadActiveProgramEntry(
@@ -100,7 +252,7 @@ async function loadActiveProgramEntry(
   const program = await prisma.program.findFirst({
     where: {
       userId,
-      status: ProgramStatus.ACTIVE,
+      status: { in: [ProgramStatus.ACTIVE, ProgramStatus.COMPLETED] },
       purchase: {
         status: PurchaseStatus.PAID,
       },
@@ -146,27 +298,13 @@ async function loadActiveProgramEntry(
         status: program.status,
         currentDay: currentDayIndex,
         totalDays: totalProgramDays,
-        currentProgramDay: {
-          dayIndex: currentDayIndex,
-          stage: "",
-          estimatedMinutes: 0,
-          title: "",
-          focus: "",
-          summary: "",
-          normalSignals: [],
-          getHelpSignals: [],
-          safetyNotes: [],
-          personalizationFlags: [],
-          completedAt: null,
-          completionPercent: 0,
-        },
+        currentProgramDay: buildEmptyProgramDay(currentDayIndex),
       },
       contentComplete: false,
     };
   }
 
-  const summary = readContentSummary(currentProgramDay.contentJson);
-  const contentComplete = summary.title.length > 0 && summary.focus.length > 0;
+  const currentDay = buildProgramDayEntry(currentProgramDay);
 
   return {
     entry: {
@@ -175,22 +313,9 @@ async function loadActiveProgramEntry(
       status: program.status,
       currentDay: currentDayIndex,
       totalDays: totalProgramDays,
-      currentProgramDay: {
-        dayIndex: currentProgramDay.dayIndex,
-        stage: currentProgramDay.stage,
-        estimatedMinutes: currentProgramDay.estimatedMinutes,
-        title: summary.title,
-        focus: summary.focus,
-        summary: summary.summary,
-        normalSignals: summary.normalSignals,
-        getHelpSignals: summary.getHelpSignals,
-        safetyNotes: summary.safetyNotes,
-        personalizationFlags: summary.personalizationFlags,
-        completedAt: currentProgramDay.completedAt,
-        completionPercent: currentProgramDay.completionPercent,
-      },
+      currentProgramDay: currentDay.entry,
     },
-    contentComplete,
+    contentComplete: currentDay.contentComplete,
   };
 }
 
@@ -203,7 +328,7 @@ async function findLatestPaidPurchaseWithoutActiveProgram(
       status: PurchaseStatus.PAID,
       OR: [
         { program: { is: null } },
-        { program: { is: { status: { not: ProgramStatus.ACTIVE } } } },
+        { program: { is: { status: ProgramStatus.EXPIRED } } },
       ],
     },
     orderBy: {
@@ -247,6 +372,12 @@ export async function resolveCurrentProgramForUser(
 
   if (activeProgram) {
     if (!activeProgram.contentComplete) {
+      console.error("Missing current program day content", {
+        userId,
+        programId: activeProgram.entry.programId,
+        currentDay: activeProgram.entry.currentDay,
+      });
+
       return {
         status: "missing_day_content",
         programId: activeProgram.entry.programId,

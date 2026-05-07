@@ -1,6 +1,6 @@
 # Story 4.1: Day Header and Today's Focus
 
-Status: code-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -272,10 +272,12 @@ GPT-5.5
   - Preserved Story 3.4 routing/access behavior: unauthenticated redirects, invalid-day fallback, no-purchase/missing-profile redirects, missing-content fallback, future-day redirect, and read-only past-day review shell.
   - Kept Story 4.2+ work out of scope: no exercise cards, completion mutation, sticky completion CTA behavior, chat, analytics, PDF/reporting, billing/refund, i18n, native app work, or new dependencies.
   - Extended `e2e/program-entry.spec.ts` to cover current-day header/focus render, safety copy, signal arrays, malformed content fallback, mobile viewport visibility, and preserved route behavior.
+  - Review patch: trimmed scalar strings and string arrays from `contentJson` parsing so blank `title` / `focus` values keep returning `missing_day_content`; this avoids rendering whitespace as recovery guidance.
+  - Review patch: restored mobile-first top-section clarity by stacking header metadata cards on narrow viewports and using three columns only from the `sm` breakpoint upward.
 - Validation:
   - `pnpm typecheck` passed.
   - `pnpm lint` passed.
-  - `pnpm test:e2e e2e/program-entry.spec.ts --project="Desktop Chrome"` passed: 11/11.
+  - `pnpm test:e2e e2e/program-entry.spec.ts --project="Desktop Chrome"` passed: 12/12.
 
 ### File List
 
@@ -289,3 +291,4 @@ GPT-5.5
 ### Change Log
 
 - 2026-05-06: Implemented Story 4.1 (T1-T4); story marked `code-review` after typecheck, lint, and focused program-entry E2E passed.
+- 2026-05-07: Addressed lightweight review findings for blank content parsing and mobile metadata layout; `pnpm typecheck`, `pnpm lint`, and focused program-entry E2E (12/12) pass. Story marked `done`.

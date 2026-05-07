@@ -38,7 +38,7 @@ export async function GET() {
           status: state.status,
           programId: state.programId,
           currentDay: state.currentDay,
-          redirectTo: "/onboarding",
+          redirectTo: "/progress",
         },
         { status: 200 }
       );
