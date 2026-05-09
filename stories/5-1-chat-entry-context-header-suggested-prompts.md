@@ -1,6 +1,6 @@
 # Story 5.1: Chat Entry, Context Header, and Suggested Prompts
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Created by bmad-create-story after Epic 4 was completed and Story 4.4 was marked done. -->
 
@@ -69,45 +69,45 @@ so that I can ask focused questions without re-explaining everything.
 
 ## Tasks / Subtasks
 
-- [ ] **T1 - Add protected Chat page route** (AC: 1, 2, 3, 4)
-  - [ ] 1.1 Create `src/app/(app)/chat/page.tsx` as a Server Component with `dynamic = "force-dynamic"`.
-  - [ ] 1.2 Use `getAuthSession()` and redirect unauthenticated users to `/sign-in?callbackUrl=%2Fchat`.
-  - [ ] 1.3 Resolve current program with `resolveCurrentProgramForUser(session.user.id)`.
-  - [ ] 1.4 Redirect `no_purchase` and `missing_profile` to `/onboarding`.
-  - [ ] 1.5 Redirect `missing_day_content` to `/progress`.
-  - [ ] 1.6 Render the 4-section chat shell for `ready` and `missing_program_recovered` states only.
+- [x] **T1 - Add protected Chat page route** (AC: 1, 2, 3, 4)
+  - [x] 1.1 Create `src/app/(app)/chat/page.tsx` as a Server Component with `dynamic = "force-dynamic"`.
+  - [x] 1.2 Use `getAuthSession()` and redirect unauthenticated users to `/sign-in?callbackUrl=%2Fchat`.
+  - [x] 1.3 Resolve current program with `resolveCurrentProgramForUser(session.user.id)`.
+  - [x] 1.4 Redirect `no_purchase` and `missing_profile` to `/onboarding`.
+  - [x] 1.5 Redirect `missing_day_content` to `/progress`.
+  - [x] 1.6 Render the 4-section chat shell for `ready` and `missing_program_recovered` states only.
 
-- [ ] **T2 - Load safe chat context** (AC: 4, 9)
-  - [ ] 2.1 Read the user's `RecoveryProfile` body-part context on the server.
-  - [ ] 2.2 Display body part and subtype using user-safe labels; do not expose raw notes or full `riskFlagsJson`.
-  - [ ] 2.3 Display current day from `CurrentProgramEntry.currentDay` and `totalDays`.
-  - [ ] 2.4 Display a remaining quota placeholder based on the architecture limit of 20 daily messages, clearly scoped as the first-version display until Story 5.4 implements enforcement.
-  - [ ] 2.5 Keep session payload small; do not add large program/profile state to NextAuth JWT/session.
+- [x] **T2 - Load safe chat context** (AC: 4, 9)
+  - [x] 2.1 Read the user's `RecoveryProfile` body-part context on the server.
+  - [x] 2.2 Display body part and subtype using user-safe labels; do not expose raw notes or full `riskFlagsJson`.
+  - [x] 2.3 Display current day from `CurrentProgramEntry.currentDay` and `totalDays`.
+  - [x] 2.4 Display a remaining quota placeholder based on the architecture limit of 20 daily messages, clearly scoped as the first-version display until Story 5.4 implements enforcement.
+  - [x] 2.5 Keep session payload small; do not add large program/profile state to NextAuth JWT/session.
 
-- [ ] **T3 - Build client chat shell interactions** (AC: 3, 5, 6, 7)
-  - [ ] 3.1 Add a small client component under `src/components/chat/` for suggested prompts and input state.
-  - [ ] 3.2 Render 3-5 suggested prompts tailored to current body part/day in a deterministic way.
-  - [ ] 3.3 Clicking a suggested prompt fills the textarea/input but does not submit.
-  - [ ] 3.4 Render fresh chat stream copy that sets expectations without pretending there are stored messages.
-  - [ ] 3.5 Render send action as disabled or non-submitting with explanatory copy that answers arrive in Story 5.2.
-  - [ ] 3.6 Add stable test ids such as `chat-context-header`, `chat-suggested-prompts`, `chat-stream-fresh`, and `chat-input`.
+- [x] **T3 - Build client chat shell interactions** (AC: 3, 5, 6, 7)
+  - [x] 3.1 Add a small client component under `src/components/chat/` for suggested prompts and input state.
+  - [x] 3.2 Render 3-5 suggested prompts tailored to current body part/day in a deterministic way.
+  - [x] 3.3 Clicking a suggested prompt fills the textarea/input but does not submit.
+  - [x] 3.4 Render fresh chat stream copy that sets expectations without pretending there are stored messages.
+  - [x] 3.5 Render send action as disabled or non-submitting with explanatory copy that answers arrive in Story 5.2.
+  - [x] 3.6 Add stable test ids such as `chat-context-header`, `chat-suggested-prompts`, `chat-stream-fresh`, and `chat-input`.
 
-- [ ] **T4 - Add Day page chat entry** (AC: 8)
-  - [ ] 4.1 Add an `Ask AI about today` link to `/chat` on valid Day pages using existing `Button`/`Link` patterns.
-  - [ ] 4.2 Keep locked, review, completed-review, and missing-content states free from unusable completion controls.
-  - [ ] 4.3 Do not wire query params or hidden send behavior unless the existing routing pattern makes it clearly safer.
+- [x] **T4 - Add Day page chat entry** (AC: 8)
+  - [x] 4.1 Add an `Ask AI about today` link to `/chat` on valid Day pages using existing `Button`/`Link` patterns.
+  - [x] 4.2 Keep locked, review, completed-review, and missing-content states free from unusable completion controls.
+  - [x] 4.3 Do not wire query params or hidden send behavior unless the existing routing pattern makes it clearly safer.
 
-- [ ] **T5 - Add focused E2E coverage and validation** (AC: 10)
-  - [ ] 5.1 Extend `e2e/program-entry.spec.ts` or add a focused chat-entry spec if cleaner.
-  - [ ] 5.2 Cover unauthenticated `/chat` redirect to sign-in.
-  - [ ] 5.3 Cover authenticated no-purchase or missing-program fallback.
-  - [ ] 5.4 Cover paid user `/chat` shell with header body part, current day, quota display, disclaimer, suggested prompts, fresh state, and input.
-  - [ ] 5.5 Cover clicking a prompt fills input without sending or creating messages.
-  - [ ] 5.6 Cover Day page `Ask AI about today` link reaches `/chat`.
-  - [ ] 5.7 Re-run core program-entry/Day regressions that could be affected by the new link.
-  - [ ] 5.8 Run `pnpm typecheck`.
-  - [ ] 5.9 Run `pnpm lint`.
-  - [ ] 5.10 Run focused Playwright tests.
+- [x] **T5 - Add focused E2E coverage and validation** (AC: 10)
+  - [x] 5.1 Extend `e2e/program-entry.spec.ts` or add a focused chat-entry spec if cleaner.
+  - [x] 5.2 Cover unauthenticated `/chat` redirect to sign-in.
+  - [x] 5.3 Cover authenticated no-purchase or missing-program fallback.
+  - [x] 5.4 Cover paid user `/chat` shell with header body part, current day, quota display, disclaimer, suggested prompts, fresh state, and input.
+  - [x] 5.5 Cover clicking a prompt fills input without sending or creating messages.
+  - [x] 5.6 Cover Day page `Ask AI about today` link reaches `/chat`.
+  - [x] 5.7 Re-run core program-entry/Day regressions that could be affected by the new link.
+  - [x] 5.8 Run `pnpm typecheck`.
+  - [x] 5.9 Run `pnpm lint`.
+  - [x] 5.10 Run focused Playwright tests.
 
 ## Dev Notes
 
@@ -303,13 +303,45 @@ GPT-5.5
 - Story 5.1 should create the protected Chat shell and Day entry point only.
 - The story deliberately excludes streaming, RAG, provider calls, persisted chat history, danger escalation, real quota enforcement, analytics, schema changes, and new dependencies.
 - The dev agent should reuse current auth/program-entry patterns and preserve all Epic 4 Day behavior.
+- Implemented protected `/chat` Server Component with auth, current-program fallback handling, safe `RecoveryProfile` context selection, and no session/JWT expansion.
+- Added `src/components/chat/chat-entry-shell.tsx` client component with Context Header, Suggested Prompts, Fresh Chat Stream, and disabled/non-submitting Input Area.
+- Added deterministic 5-prompt set where clicks fill `chat-input` without sending or calling `/api/chat`.
+- Added `Ask AI about today` link from valid Day pages to `/chat`.
+- Extended focused E2E coverage to 21 tests for protected chat entry, no-purchase fallback, paid-user chat shell, prompt fill behavior, Day-page chat entry, and existing program/day regressions.
+- Validation passed on 2026-05-08: `pnpm typecheck`, `pnpm lint`, and `pnpm test:e2e e2e/program-entry.spec.ts --project="Desktop Chrome"` with 21/21 tests passing.
+- Light code review completed on 2026-05-08. One prompt relevance polish was applied so suggested prompts include the current body part as well as the current day; validation passed again and story moved to done.
 
 ### File List
 
 - `stories/5-1-chat-entry-context-header-suggested-prompts.md`
 - `stories/sprint-status.yaml`
 - `项目主档案.md`
+- `src/app/(app)/chat/page.tsx`
+- `src/components/chat/chat-entry-shell.tsx`
+- `src/app/(app)/day/[day]/page.tsx`
+- `e2e/program-entry.spec.ts`
 
 ### Change Log
 
 - 2026-05-07: Created Story 5.1 with protected chat shell, context header, suggested prompt fill behavior, Day-page entry point, scope boundaries, and focused regression-test guidance; story marked ready-for-dev.
+- 2026-05-08: Implemented Story 5.1 protected chat shell, suggested-prompt input fill behavior, Day-page chat entry, and focused E2E coverage; story moved to code-review.
+- 2026-05-08: Completed light code review prompt-relevance patch; focused validation passed and story moved to done.
+
+### Senior Developer Review (AI)
+
+Outcome: Approved after patch
+
+Findings:
+
+- Low: Suggested prompts were deterministic and day-aware, but not explicitly body-part-aware despite AC5 requiring relevance to the current recovery context. Patched `src/app/(app)/chat/page.tsx` so the first prompt includes the formatted body part, and extended E2E to assert `finger stiffness expected for Day 5`.
+
+Residual Risk:
+
+- Story 5.1 intentionally uses a static `20 questions left today` quota display. Real quota enforcement remains Story 5.4.
+- Story 5.1 intentionally does not create chat conversations/messages, stream answers, or call providers. Those remain Story 5.2+ responsibilities.
+
+Validation:
+
+- 2026-05-08: `pnpm typecheck` passed.
+- 2026-05-08: `pnpm lint` passed.
+- 2026-05-08: `pnpm test:e2e e2e/program-entry.spec.ts --project="Desktop Chrome"` passed with 21/21 tests.

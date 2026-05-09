@@ -1,7 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
   Prisma,
+  ChatMessageRole,
   PrismaClient,
+  KnowledgeSourceType,
   ProgramStatus,
   PurchaseStatus,
 } from "@prisma/client";
@@ -9,6 +11,7 @@ import {
 const prisma = new PrismaClient();
 
 const createdUserIds = new Set<string>();
+const createdKnowledgeDocumentIds = new Set<string>();
 
 function uniqueId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -65,6 +68,67 @@ async function seedRecoveryProfile(userId: string) {
       jobType: "desk",
       riskFlagsJson: {},
     },
+  });
+}
+
+async function seedKnowledgeChunk() {
+  const slug = `finger-stiffness-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const document = await prisma.knowledgeDocument.create({
+    data: {
+      sourceType: KnowledgeSourceType.NHS,
+      title: "NHS hand therapy finger stiffness guide",
+      slug,
+      version: "test",
+    },
+  });
+
+  await prisma.knowledgeChunk.create({
+    data: {
+      documentId: document.id,
+      chunkIndex: 0,
+      content:
+        "Finger stiffness after immobilisation can be common. Gentle movement should stay comfortable and should not replace clinician instructions.",
+      keywords: ["finger", "stiffness", "early_mobility"],
+      metadataJson: { bodyPart: "finger", phase: "early_mobility" },
+    },
+  });
+
+  createdKnowledgeDocumentIds.add(document.id);
+  return document.id;
+}
+
+function parseNdjsonEvents(payload: string) {
+  return payload
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line) as { type: string; [key: string]: unknown });
+}
+
+async function seedDailyChatQuotaUsage({
+  userId,
+  programId,
+  count,
+}: {
+  userId: string;
+  programId: string;
+  count: number;
+}) {
+  const conversation = await prisma.chatConversation.create({
+    data: {
+      userId,
+      programId,
+    },
+  });
+
+  await prisma.chatMessage.createMany({
+    data: Array.from({ length: count }, (_, index) => ({
+      conversationId: conversation.id,
+      role: ChatMessageRole.ASSISTANT,
+      content: `Seeded quota usage ${index + 1}`,
+      provider: "mock",
+      model: "deterministic-recovery-coach",
+      escalated: false,
+    })),
   });
 }
 
@@ -182,6 +246,12 @@ test.describe("program entry", () => {
       });
     }
 
+    if (createdKnowledgeDocumentIds.size > 0) {
+      await prisma.knowledgeDocument.deleteMany({
+        where: { id: { in: [...createdKnowledgeDocumentIds] } },
+      });
+    }
+
     await prisma.$disconnect();
   });
 
@@ -193,6 +263,13 @@ test.describe("program entry", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: "unauthenticated",
     });
+  });
+
+  test("unauthenticated users opening completion redirect to sign in", async ({
+    page,
+  }) => {
+    await page.goto("/completion");
+    await expect(page).toHaveURL(/\/sign-in\?callbackUrl=%2Fcompletion$/);
   });
 
   test("POST /api/program/day/[day]/complete returns 401 for unauthenticated requests", async ({
@@ -223,6 +300,486 @@ test.describe("program entry", () => {
       status: "no_purchase",
       redirectTo: "/onboarding",
     });
+  });
+
+  test("authenticated users without purchase cannot open chat shell", async ({
+    page,
+  }) => {
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + chat shell coverage only runs once."
+    );
+
+    const email = `dev-chat-no-purchase-${Date.now()}@example.com`;
+    await seedDevUser(email);
+    await signInAs(page, email);
+
+    await page.goto("/chat");
+    await expect(page).toHaveURL(/\/onboarding$/);
+    await expect(page.getByTestId("chat-context-header")).toHaveCount(0);
+  });
+
+  test("paid users can open chat shell and fill suggested prompt only", async ({
+    page,
+  }) => {
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + chat shell coverage only runs once."
+    );
+
+    const email = `dev-chat-shell-${Date.now()}@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await signInAs(page, email);
+    let chatApiRequests = 0;
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname.startsWith("/api/chat")) {
+        chatApiRequests += 1;
+      }
+    });
+
+    await page.goto("/chat");
+    await expect(page).toHaveURL(/\/chat$/);
+    await expect(page.getByTestId("chat-context-header")).toBeVisible();
+    await expect(page.getByText("Finger - Proximal Phalanx Stiffness")).toBeVisible();
+    await expect(page.getByText("Day 5 of 14")).toBeVisible();
+    await expect(page.getByText("20 questions left today")).toBeVisible();
+    await expect(page.getByTestId("chat-context-header")).toContainText(
+      "does not diagnose"
+    );
+
+    const prompts = page.getByTestId("chat-suggested-prompt");
+    const promptCount = await prompts.count();
+    expect(promptCount).toBeGreaterThanOrEqual(3);
+    expect(promptCount).toBeLessThanOrEqual(5);
+    await expect(
+      prompts.filter({ hasText: "finger stiffness expected for Day 5" })
+    ).toBeVisible();
+    await expect(page.getByTestId("chat-stream-fresh")).toBeVisible();
+    await expect(page.getByTestId("chat-input")).toBeVisible();
+    await expect(page.getByTestId("chat-send")).toBeDisabled();
+
+    const firstPrompt = prompts.first();
+    const promptText = (await firstPrompt.textContent()) ?? "";
+    await firstPrompt.click();
+    await expect(page.getByTestId("chat-input")).toHaveValue(promptText);
+    await expect(page.getByTestId("chat-send")).toBeEnabled();
+    await expect(page).toHaveURL(/\/chat$/);
+    expect(chatApiRequests).toBe(0);
+  });
+
+  test("POST /api/chat rejects invalid requests before persistence", async ({ page }) => {
+    test.setTimeout(90_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + chat API coverage only runs once."
+    );
+
+    const unauthenticated = await page.request.post("/api/chat", {
+      data: { question: "Can I move my finger?" },
+    });
+    expect(unauthenticated.status()).toBe(401);
+
+    const noPurchaseEmail = `dev-chat-api-no-purchase-${Date.now()}@example.com`;
+    await seedDevUser(noPurchaseEmail);
+    await signInAs(page, noPurchaseEmail);
+    const noPurchase = await page.request.post("/api/chat", {
+      data: { question: "Can I move my finger?" },
+    });
+    expect(noPurchase.status()).toBe(403);
+
+    const paidEmail = `dev-chat-api-validation-${Date.now()}@example.com`;
+    const userId = await seedDevUser(paidEmail);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await signInAs(page, paidEmail);
+    const invalid = await page.request.post("/api/chat", {
+      data: { question: "   " },
+    });
+    expect(invalid.status()).toBe(400);
+
+    const malformed = await page.request.post("/api/chat", {
+      data: { question: { text: "Can I move my finger?" } },
+    });
+    expect(malformed.status()).toBe(400);
+
+    const conversations = await prisma.chatConversation.count({
+      where: { userId },
+    });
+    expect(conversations).toBe(0);
+  });
+
+  test("paid users can stream a grounded chat answer with citations", async ({ page }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + chat streaming coverage only runs once."
+    );
+
+    const email = `dev-chat-stream-${Date.now()}@example.com`;
+    const userId = await seedDevUser(email);
+    const { programId } = await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await seedKnowledgeChunk();
+    await signInAs(page, email);
+
+    await page.goto("/chat");
+    await page.getByTestId("chat-input").fill("Is finger stiffness expected today?");
+    await page.getByTestId("chat-send").click();
+
+    await expect(page.getByTestId("chat-answering-state")).toBeVisible();
+    await expect(page.getByTestId("chat-message-user")).toContainText(
+      "Is finger stiffness expected today?"
+    );
+    await expect(page.getByTestId("chat-message-assistant")).toContainText(
+      "educational and non-diagnostic",
+      { timeout: 60_000 }
+    );
+    await expect(page.getByTestId("chat-citations")).toContainText(
+      "NHS hand therapy finger stiffness guide",
+      { timeout: 60_000 }
+    );
+    await expect(page.getByTestId("chat-send")).toBeDisabled();
+
+    const conversation = await prisma.chatConversation.findFirstOrThrow({
+      where: {
+        userId,
+        programId: programId ?? "",
+      },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+    expect(conversation.messages).toHaveLength(2);
+    expect(conversation.messages[0].role).toBe("USER");
+    expect(conversation.messages[1].role).toBe("ASSISTANT");
+    expect(conversation.messages[1].citationsJson).toBeTruthy();
+    expect(conversation.messages[1].provider).toBe("mock");
+    expect(conversation.messages[1].escalated).toBe(false);
+    await expect(page.getByText("19 questions left today")).toBeVisible();
+  });
+
+  test("daily chat quota blocks ordinary chat without creating messages", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + chat quota coverage only runs once."
+    );
+
+    const email = `${Date.now()}-quota-exhausted@example.com`;
+    const userId = await seedDevUser(email);
+    const { programId } = await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await seedDailyChatQuotaUsage({
+      userId,
+      programId: programId ?? "",
+      count: 20,
+    });
+    await signInAs(page, email);
+
+    let chatApiRequests = 0;
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname.startsWith("/api/chat")) {
+        chatApiRequests += 1;
+      }
+    });
+
+    await page.goto("/chat");
+    await expect(page.getByText("0 questions left today")).toBeVisible();
+    await expect(page.getByTestId("chat-quota-exceeded")).toContainText(
+      "Today's AI quota is used up"
+    );
+    await expect(page.getByTestId("chat-input")).toBeEnabled();
+    await page.getByTestId("chat-input").fill("Is finger stiffness expected today?");
+    await expect(page.getByTestId("chat-send")).toBeEnabled();
+    await page.getByTestId("chat-send").click();
+    await expect(page.getByTestId("chat-message-assistant")).toContainText(
+      "Today's AI question quota is used up"
+    );
+    expect(chatApiRequests).toBe(0);
+
+    const response = await page.request.post("/api/chat", {
+      data: { question: "Is finger stiffness expected today?" },
+    });
+    expect(response.status()).toBe(200);
+    const events = parseNdjsonEvents(await response.text());
+    expect(events.some((event) => event.type === "quota_exceeded")).toBe(true);
+
+    const messageCount = await prisma.chatMessage.count({
+      where: {
+        conversation: {
+          userId,
+          programId: programId ?? "",
+        },
+      },
+    });
+    expect(messageCount).toBe(20);
+  });
+
+  test("danger escalation still returns after quota is exhausted", async ({ page }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + chat quota safety coverage only runs once."
+    );
+
+    const email = `${Date.now()}-quota-danger@example.com`;
+    const userId = await seedDevUser(email);
+    const { programId } = await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await seedDailyChatQuotaUsage({
+      userId,
+      programId: programId ?? "",
+      count: 20,
+    });
+    await signInAs(page, email);
+
+    const response = await page.request.post("/api/chat", {
+      data: { question: "My finger is blue and numb." },
+    });
+    expect(response.status()).toBe(200);
+    const events = parseNdjsonEvents(await response.text());
+    expect(events.some((event) => event.type === "escalation")).toBe(true);
+    expect(events.some((event) => event.type === "quota_exceeded")).toBe(false);
+
+    const messages = await prisma.chatMessage.findMany({
+      where: {
+        conversation: {
+          userId,
+          programId: programId ?? "",
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(messages).toHaveLength(22);
+    const lastMessage = messages[messages.length - 1];
+    expect(lastMessage.provider).toBe("local-safety");
+    expect(lastMessage.escalated).toBe(true);
+
+    const normalAssistantCount = await prisma.chatMessage.count({
+      where: {
+        role: ChatMessageRole.ASSISTANT,
+        escalated: false,
+        conversation: {
+          userId,
+          programId: programId ?? "",
+        },
+      },
+    });
+    expect(normalAssistantCount).toBe(20);
+  });
+
+  test("primary provider failure falls back and persists fallback metadata", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + chat fallback coverage only runs once."
+    );
+
+    const email = `${Date.now()}-provider-fallback@example.com`;
+    const userId = await seedDevUser(email);
+    const { programId } = await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await seedKnowledgeChunk();
+    await signInAs(page, email);
+
+    const response = await page.request.post("/api/chat", {
+      headers: { "x-chat-provider-test-mode": "primary_error" },
+      data: { question: "Is finger stiffness expected today?" },
+    });
+    expect(response.status()).toBe(200);
+    const events = parseNdjsonEvents(await response.text());
+    expect(events.some((event) => event.type === "provider_fallback")).toBe(true);
+    expect(events.some((event) => event.type === "token")).toBe(true);
+
+    const conversation = await prisma.chatConversation.findFirstOrThrow({
+      where: {
+        userId,
+        programId: programId ?? "",
+      },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+    expect(conversation.messages).toHaveLength(2);
+    expect(conversation.messages[1].provider).toBe("groq");
+    expect(conversation.messages[1].model).toBe("deterministic-groq-fallback");
+    expect(conversation.messages[1].escalated).toBe(false);
+  });
+
+  test("full provider failure is retryable and does not persist assistant answer", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + chat provider failure coverage only runs once."
+    );
+
+    const email = `${Date.now()}-provider-failure@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await signInAs(page, email);
+
+    await page.route("**/api/chat", async (route) => {
+      await route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "chat_generation_failed",
+          message: "We could not answer right now. Please retry in a moment.",
+        }),
+      });
+    });
+    await page.goto("/chat");
+    await page.getByTestId("chat-input").fill("Is finger stiffness expected today?");
+    await page.getByTestId("chat-send").click();
+    await expect(page.getByTestId("chat-error-state")).toContainText(
+      "Please retry in a moment",
+      { timeout: 30_000 }
+    );
+    await page.unroute("**/api/chat");
+
+    const response = await page.request.post("/api/chat", {
+      headers: { "x-chat-provider-test-mode": "all_error" },
+      data: { question: "Is finger stiffness expected today?" },
+    });
+    expect(response.status()).toBe(502);
+
+    const conversations = await prisma.chatConversation.count({
+      where: { userId },
+    });
+    expect(conversations).toBe(0);
+  });
+
+  test("danger chat input shows accessible escalation and persists escalated message", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + chat safety coverage only runs once."
+    );
+
+    const email = `dev-chat-danger-${Date.now()}@example.com`;
+    const userId = await seedDevUser(email);
+    const { programId } = await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await seedKnowledgeChunk();
+    await signInAs(page, email);
+
+    await page.goto("/chat");
+    await page.getByTestId("chat-input").fill("My finger is blue and numb.");
+    await page.getByTestId("chat-send").click();
+
+    const warning = page.getByTestId("chat-escalation-warning");
+    await expect(warning).toBeVisible({ timeout: 60_000 });
+    await expect(warning).toHaveAttribute("role", "alert");
+    await expect(warning).toContainText("Warning sign detected");
+    await expect(warning).toContainText("Please contact your clinician");
+    await expect(warning).toContainText("blue");
+    await expect(warning).toContainText("numb");
+    await expect(page.getByTestId("chat-message-assistant")).toContainText(
+      "I cannot diagnose this or guide exercises",
+      { timeout: 60_000 }
+    );
+    await expect(page.getByTestId("chat-message-assistant")).not.toContainText(
+      "educational and non-diagnostic"
+    );
+    await expect(page.getByTestId("chat-citations")).toHaveCount(0);
+
+    const conversation = await prisma.chatConversation.findFirstOrThrow({
+      where: {
+        userId,
+        programId: programId ?? "",
+      },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+    expect(conversation.messages).toHaveLength(2);
+    expect(conversation.messages[0].role).toBe("USER");
+    expect(conversation.messages[0].escalated).toBe(false);
+    expect(conversation.messages[1].role).toBe("ASSISTANT");
+    expect(conversation.messages[1].provider).toBe("local-safety");
+    expect(conversation.messages[1].escalated).toBe(true);
+  });
+
+  test("negated danger terms keep the normal chat path", async ({ page }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + chat safety coverage only runs once."
+    );
+
+    const email = `dev-chat-negated-danger-${Date.now()}@example.com`;
+    const userId = await seedDevUser(email);
+    const { programId } = await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await seedKnowledgeChunk();
+    await signInAs(page, email);
+
+    await page.goto("/chat");
+    await page
+      .getByTestId("chat-input")
+      .fill("I have no numbness, no severe pain, and can push gently. Is stiffness expected?");
+    await page.getByTestId("chat-send").click();
+
+    await expect(page.getByTestId("chat-escalation-warning")).toHaveCount(0);
+    await expect(page.getByTestId("chat-message-assistant")).toContainText(
+      "educational and non-diagnostic",
+      { timeout: 60_000 }
+    );
+    await expect(page.getByTestId("chat-citations")).toContainText(
+      "NHS hand therapy finger stiffness guide",
+      { timeout: 60_000 }
+    );
+
+    const conversation = await prisma.chatConversation.findFirstOrThrow({
+      where: {
+        userId,
+        programId: programId ?? "",
+      },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+    expect(conversation.messages).toHaveLength(2);
+    expect(conversation.messages[1].role).toBe("ASSISTANT");
+    expect(conversation.messages[1].provider).toBe("mock");
+    expect(conversation.messages[1].escalated).toBe(false);
   });
 
   test("paid active program with currentDay > 1 resolves and routes to that day", async ({
@@ -327,6 +884,9 @@ test.describe("program entry", () => {
       page.getByRole("heading", { name: "Day 5: Build active range" })
     ).toBeVisible();
     await expect(
+      page.getByRole("link", { name: "Ask AI about today" })
+    ).toBeVisible();
+    await expect(
       page.getByText("Active flexion practice")
     ).toBeVisible();
     await expect(page.getByText("Add a controlled active range block.")).toBeVisible();
@@ -382,6 +942,10 @@ test.describe("program entry", () => {
     await expect(
       page.getByLabel("Mark Gentle finger bends complete")
     ).toBeVisible();
+
+    await page.getByRole("link", { name: "Ask AI about today" }).click();
+    await expect(page).toHaveURL(/\/chat$/);
+    await expect(page.getByTestId("chat-context-header")).toBeVisible();
   });
 
   test("empty or malformed exercise rows show a safe exercise fallback", async ({
@@ -541,7 +1105,240 @@ test.describe("program entry", () => {
     expect(futureDay.completionPercent).toBe(0);
   });
 
-  test("day 14 completion marks program completed", async ({ page }) => {
+  test("active users cannot open false completion state", async ({ page }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + completion routing coverage only runs once."
+    );
+
+    const email = `${Date.now()}-active-completion-guard@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await signInAs(page, email);
+
+    await page.goto("/completion");
+    await expect(page).toHaveURL(/\/day\/5$/);
+    await expect(page.getByTestId("completion-page")).toHaveCount(0);
+  });
+
+  test("completed users can revisit completion without report or share controls", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + completion routing coverage only runs once."
+    );
+
+    const email = `${Date.now()}-completion-revisit@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+      programStatus: ProgramStatus.COMPLETED,
+    });
+    await prisma.programDay.updateMany({
+      where: {
+        program: { userId },
+        dayIndex: 14,
+      },
+      data: {
+        completedAt: new Date(),
+        completionPercent: 100,
+      },
+    });
+    await signInAs(page, email);
+
+    await page.goto("/completion");
+    await expect(page.getByTestId("completion-page")).toBeVisible();
+    await expect(page.getByTestId("completion-summary")).toContainText(
+      "14 of 14 days finished"
+    );
+    await expect(page.getByTestId("completion-summary")).toContainText(
+      "Day 14 of 14"
+    );
+    await expect(page.getByTestId("completion-summary")).toContainText("Finger");
+    await expect(page.getByTestId("completion-next-steps")).toContainText(
+      "Review Day 14"
+    );
+    await expect(page.getByTestId("completion-report-download")).toBeVisible();
+    await expect(page.getByTestId("completion-safety-boundary")).toContainText(
+      "does not diagnose"
+    );
+    await expect(page.getByRole("link", { name: /Download report/i })).toHaveCount(
+      0
+    );
+    await expect(page.getByRole("link", { name: /Share/i })).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "Progress overview" })
+    ).toHaveCount(0);
+
+    await page.goto("/progress");
+    await expect(page).toHaveURL(/\/completion$/);
+  });
+
+  test("completed users can download a safe summary report", async ({ page }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + report download coverage only runs once."
+    );
+
+    const email = `${Date.now()}-report-download@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+      programStatus: ProgramStatus.COMPLETED,
+    });
+    await prisma.programDay.updateMany({
+      where: {
+        program: { userId },
+        dayIndex: 14,
+      },
+      data: {
+        completedAt: new Date(),
+        completionPercent: 100,
+      },
+    });
+    await signInAs(page, email);
+
+    const response = await page.request.get("/api/program/report");
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toContain("text/html");
+    expect(response.headers()["content-disposition"]).toContain(
+      'attachment; filename="recovery-summary-report.html"'
+    );
+    expect(response.headers()["cache-control"]).toContain("no-store");
+
+    const body = await response.text();
+    expect(body).toContain("14-day recovery companion summary");
+    expect(body).toContain("Completed");
+    expect(body).toContain("14 of 14 days");
+    expect(body).toContain("Finger - Proximal Phalanx Stiffness");
+    expect(body).toContain("not a diagnosis");
+    expect(body).toContain("not a diagnosis, treatment plan, prognosis, or medical clearance");
+    expect(body).toContain("Contact a clinician promptly");
+    expect(body).not.toContain("stripeCheckoutSessionId");
+    expect(body).not.toContain("paymentIntent");
+    expect(body).not.toContain("contentJson");
+    expect(body).not.toContain("provider");
+    expect(body).not.toContain("quota");
+    expect(body).not.toContain("Share");
+    expect(body).not.toContain("Copy link");
+    expect(body).not.toContain("completion_report_view");
+  });
+
+  test("report download rejects unauthenticated and active users safely", async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + report access coverage only runs once."
+    );
+
+    const unauthenticated = await request.get("/api/program/report");
+    expect(unauthenticated.status()).toBe(401);
+    expect(await unauthenticated.text()).not.toContain(
+      "14-day recovery companion summary"
+    );
+
+    const email = `${Date.now()}-report-active-guard@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 5,
+    });
+    await signInAs(page, email);
+
+    const activeResponse = await page.request.get("/api/program/report");
+    expect(activeResponse.status()).toBe(403);
+    const activeBody = await activeResponse.json();
+    expect(activeBody).toMatchObject({
+      status: "not_completed",
+    });
+    expect(JSON.stringify(activeBody)).not.toContain(
+      "14-day recovery companion summary"
+    );
+  });
+
+  test("report download fails safely when final content is malformed", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + report missing content coverage only runs once."
+    );
+
+    const email = `${Date.now()}-report-missing-content@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 14,
+      programStatus: ProgramStatus.COMPLETED,
+      programDayContent: {
+        title: "   ",
+        focus: "   ",
+        summary: "Malformed final content should not be emitted.",
+      },
+    });
+    await signInAs(page, email);
+
+    const response = await page.request.get("/api/program/report");
+    expect(response.status()).toBe(409);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      status: "missing_content",
+    });
+    expect(JSON.stringify(body)).not.toContain(
+      "Malformed final content should not be emitted"
+    );
+  });
+
+  test("completion report CTA shows recoverable error on failed download", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + report failure UI coverage only runs once."
+    );
+
+    const email = `${Date.now()}-report-ui-error@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 14,
+      programStatus: ProgramStatus.COMPLETED,
+    });
+    await signInAs(page, email);
+
+    await page.route("**/api/program/report", async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "unavailable" }),
+      });
+    });
+
+    await page.goto("/completion");
+    await page.getByTestId("completion-report-download").click();
+    await expect(page.getByTestId("completion-report-error")).toContainText(
+      "Please try again"
+    );
+  });
+
+  test("day 14 completion marks program completed and routes to completion", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
     test.skip(
       test.info().project.name !== "Desktop Chrome",
       "Auth + API coverage only runs once."
@@ -555,15 +1352,13 @@ test.describe("program entry", () => {
     });
     await signInAs(page, email);
 
-    const response = await page.request.post("/api/program/day/14/complete");
-    expect(response.status()).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      status: "completed",
-      completedDay: 14,
-      currentDay: 14,
-      completionPercent: 100,
-      programStatus: ProgramStatus.COMPLETED,
-    });
+    await page.goto("/day/14");
+    await page.getByRole("button", { name: "Mark day complete" }).click();
+    await expect(page).toHaveURL(/\/completion$/, { timeout: 90_000 });
+    await expect(page.getByTestId("completion-page")).toBeVisible();
+    await expect(page.getByTestId("completion-summary")).toContainText(
+      "14 of 14 days finished"
+    );
 
     const program = await prisma.program.findUniqueOrThrow({
       where: { id: programId ?? "" },
@@ -1000,5 +1795,8 @@ test.describe("program entry", () => {
 
     await page.goto("/day/2");
     await expect(page).toHaveURL(/\/sign-in\?callbackUrl=%2Fday%2F2/);
+
+    await page.goto("/chat");
+    await expect(page).toHaveURL(/\/sign-in\?callbackUrl=%2Fchat/);
   });
 });

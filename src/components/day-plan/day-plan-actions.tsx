@@ -16,6 +16,7 @@ interface CompletionResponse {
   status: string;
   message?: string;
   currentDay?: number;
+  programStatus?: string;
 }
 
 export function DayPlanActions({ day, exercises }: DayPlanActionsProps) {
@@ -74,7 +75,9 @@ export function DayPlanActions({ day, exercises }: DayPlanActionsProps) {
       setShowConfirmation(false);
       setFeedback(body.message ?? "Day marked complete.");
       window.setTimeout(() => {
-        if (typeof body.currentDay === "number" && body.currentDay > day) {
+        if (body.programStatus === "COMPLETED") {
+          router.push("/completion");
+        } else if (typeof body.currentDay === "number" && body.currentDay > day) {
           router.push(`/day/${body.currentDay}`);
         } else {
           router.refresh();

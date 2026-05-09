@@ -384,8 +384,11 @@ export default async function DayPage({ params }: DayPageProps) {
         )}
 
         <div className="flex flex-col gap-3 sm:flex-row">
+          <Button asChild>
+            <Link href="/chat">Ask AI about today</Link>
+          </Button>
           {!isCurrentDay ? (
-            <Button asChild>
+            <Button variant="outline" asChild>
               <Link href={`/day/${program.currentDay}`}>
                 Go to today (Day {program.currentDay})
               </Link>

@@ -272,7 +272,10 @@ async function loadActiveProgramEntry(
     return null;
   }
 
-  const currentDayIndex = clampDayIndex(program.currentDay);
+  const currentDayIndex =
+    program.status === ProgramStatus.COMPLETED
+      ? totalProgramDays
+      : clampDayIndex(program.currentDay);
   const currentProgramDay = await prisma.programDay.findUnique({
     where: {
       programId_dayIndex: {

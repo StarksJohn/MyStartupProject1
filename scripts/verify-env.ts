@@ -56,6 +56,13 @@ const ENV_REQUIREMENTS: EnvRequirement[] = [
     description: "Postgres connection string used by Prisma and NextAuth",
   },
   {
+    name: "DIRECT_URL",
+    required: true,
+    pattern: /^postgresql:\/\//,
+    description:
+      "Direct Postgres connection string used by Prisma schema sync and generation",
+  },
+  {
     name: "EMAIL_SERVER",
     required: true,
     pattern: /^smtp(s)?:\/\//,
@@ -92,6 +99,29 @@ const ENV_REQUIREMENTS: EnvRequirement[] = [
     pattern: /^whsec_/,
     description:
       "Stripe endpoint secret for verifying webhook signatures in production",
+  },
+  {
+    name: "GEMINI_API_KEY",
+    required: false,
+    requiredInProduction: true,
+    description: "Primary AI provider key for recovery chat answers",
+  },
+  {
+    name: "GROQ_API_KEY",
+    required: false,
+    requiredInProduction: true,
+    description: "Fallback AI provider key for recovery chat answers",
+  },
+  {
+    name: "UPSTASH_REDIS_REST_URL",
+    required: false,
+    pattern: /^https?:\/\//,
+    description: "Optional Upstash Redis REST URL for production chat quota tracking",
+  },
+  {
+    name: "UPSTASH_REDIS_REST_TOKEN",
+    required: false,
+    description: "Optional Upstash Redis REST token for production chat quota tracking",
   },
 ];
 

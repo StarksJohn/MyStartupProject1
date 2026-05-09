@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ProgramStatus } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { getAuthSession } from "@/lib/auth/session";
@@ -56,6 +57,10 @@ export default async function ProgressEntryPage() {
   const state = await resolveCurrentProgramForUser(session.user.id);
 
   if (state.status === "ready" || state.status === "missing_program_recovered") {
+    if (state.program.status === ProgramStatus.COMPLETED) {
+      redirect("/completion");
+    }
+
     redirect(`/day/${state.program.currentDay}`);
   }
 
