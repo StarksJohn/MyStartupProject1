@@ -26,7 +26,11 @@ declare global {
 }
 
 function getAnalyticsProvider(): AnalyticsProvider | null {
-  if (typeof window !== "undefined" && window.__analyticsProvider) {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    typeof window !== "undefined" &&
+    window.__analyticsProvider
+  ) {
     return window.__analyticsProvider;
   }
 

@@ -1,6 +1,6 @@
 # Story 7.1: Product Analytics and Funnel Events
 
-Status: code-review
+Status: done
 
 <!-- Created by bmad-create-story after Epic 6 was completed and Story 6.3 was lightly reviewed, validated, and marked done. -->
 
@@ -105,6 +105,10 @@ so that I can identify conversion and engagement bottlenecks.
   - [x] 6.7 Run `pnpm typecheck`.
   - [x] 6.8 Run `pnpm lint`.
   - [x] 6.9 Run focused Playwright coverage; document Supabase pooler instability separately if it occurs before application assertions.
+
+### Review Findings
+
+- [x] [Review][Patch] Production analytics could be enabled through the test-only window provider override [`src/lib/analytics/client.ts:29`] — fixed by allowing `window.__analyticsProvider` only outside production, so production remains controlled by `NEXT_PUBLIC_ANALYTICS_PROVIDER=plausible|umami`.
 
 ## Dev Notes
 
@@ -244,7 +248,7 @@ GPT-5.5
 - Created after Story 6.3 was approved without patch and Epic 6 was marked done.
 - `_bmad/bmm/config.yaml` and `.cursor/rules/project-context.mdc` do not exist in this repository; project context restored from `项目主档案.md`, `stories/sprint-status.yaml`, `epics.md`, architecture, UX, and real code files.
 - Source discovery loaded via exact reads and targeted search: Epic 7 section, architecture analytics sections, landing page, onboarding components, checkout success page, day completion client/API, chat route, report download, share action, `.env.example`, and existing E2E coverage.
-- Implemented typed analytics vocabulary, safe property sanitizer, and browser-only provider adapter. Analytics remains no-op unless `NEXT_PUBLIC_ANALYTICS_PROVIDER` is `plausible` or `umami`; E2E uses a test-only `window.__analyticsProvider` override.
+- Implemented typed analytics vocabulary, safe property sanitizer, and browser-only provider adapter. Analytics remains no-op unless `NEXT_PUBLIC_ANALYTICS_PROVIDER` is `plausible` or `umami`; E2E uses a non-production-only `window.__analyticsProvider` override.
 - Initial E2E runs exposed Supabase pooler/transaction instability in profile save, dev-mock checkout provisioning, Day completion, and Chat streaming. The focused analytics spec now mocks those downstream APIs where needed so Story 7.1 tests remain about event emission and privacy, while existing feature specs continue to own DB-backed behavior.
 
 ### Completion Notes List
@@ -256,6 +260,7 @@ GPT-5.5
 - Epic 7 later stories own monitoring, payment/refund recovery, and launch readiness.
 - Implemented `landing_view`, `cta_click`, `quiz_start`, `quiz_submit`, `checkout_start`, `paid`, `day_completed`, `chat_sent`, `chat_escalated`, `completion_report_view`, and `share_click`.
 - Analytics payloads are sanitized to allowed low-cardinality keys only and exclude account, payment, medical profile, chat, report, provider/model, quota, and raw URL data.
+- Code review fixed the provider override guard so production analytics cannot be enabled by a browser global alone.
 - Added focused `e2e/analytics-events.spec.ts`; validation passed: `pnpm typecheck`, `pnpm lint`, `pnpm test:e2e e2e/analytics-events.spec.ts` (`6 passed`, `2 skipped`).
 
 ### File List
@@ -282,3 +287,4 @@ GPT-5.5
 
 - 2026-05-10: Created Story 7.1 with typed analytics adapter scope, approved event vocabulary, privacy guardrails, provider-agnostic no-op default, focused instrumentation targets, and focused regression guidance; story marked ready-for-dev.
 - 2026-05-10: Implemented Story 7.1 product analytics layer, wired core funnel/usage events, added privacy-safe E2E coverage, passed typecheck/lint/focused E2E, and marked story code-review.
+- 2026-05-11: Completed light bmad-code-review, fixed the non-production analytics provider override guard, revalidated typecheck/lint/focused E2E, and marked story done.
