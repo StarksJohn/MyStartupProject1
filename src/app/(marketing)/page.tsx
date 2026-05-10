@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { AnalyticsLink } from "@/components/analytics/analytics-link";
+import { AnalyticsPageView } from "@/components/analytics/analytics-page-view";
 import { LandingFaq } from "@/components/marketing/landing-faq";
 import { Button } from "@/components/ui/button";
 
@@ -51,6 +53,10 @@ export default function LandingPage() {
 
   return (
     <>
+      <AnalyticsPageView
+        eventName="landing_view"
+        properties={{ surface: "landing" }}
+      />
       <section
         data-testid="landing-hero"
         className="container flex flex-col items-center justify-center gap-6 py-16 text-center sm:py-24 lg:py-28"
@@ -71,10 +77,20 @@ export default function LandingPage() {
           className="flex flex-col gap-3 pt-2 sm:flex-row sm:gap-4"
         >
           <Button size="lg" asChild>
-            <Link href="/onboarding">Start my 2-minute quiz</Link>
+            <AnalyticsLink
+              href="/onboarding"
+              eventProperties={{ surface: "landing", cta_id: "hero_primary" }}
+            >
+              Start my 2-minute quiz
+            </AnalyticsLink>
           </Button>
           <Button size="lg" variant="outline" asChild>
-            <Link href="#how-it-works">See how the 14-day plan works</Link>
+            <AnalyticsLink
+              href="#how-it-works"
+              eventProperties={{ surface: "landing", cta_id: "hero_secondary" }}
+            >
+              See how the 14-day plan works
+            </AnalyticsLink>
           </Button>
         </div>
         <p className="max-w-xl text-xs text-muted-foreground">
@@ -252,7 +268,12 @@ export default function LandingPage() {
           </p>
           <div className="mt-6">
             <Button size="lg" asChild>
-              <Link href="/onboarding">Start my 2-minute quiz</Link>
+              <AnalyticsLink
+                href="/onboarding"
+                eventProperties={{ surface: "landing", cta_id: "footer_primary" }}
+              >
+                Start my 2-minute quiz
+              </AnalyticsLink>
             </Button>
           </div>
         </div>

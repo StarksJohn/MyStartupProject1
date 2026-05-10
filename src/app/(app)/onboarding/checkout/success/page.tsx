@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AnalyticsPageView } from "@/components/analytics/analytics-page-view";
 import { Button } from "@/components/ui/button";
 import { getAuthSession } from "@/lib/auth/session";
 import {
@@ -38,6 +39,16 @@ export default async function CheckoutSuccessPage({
 
   return (
     <main className="container py-10 sm:py-14">
+      {isPlanReady ? (
+        <AnalyticsPageView
+          eventName="paid"
+          properties={{
+            surface: "checkout_success",
+            source: "checkout_success",
+            plan_ready: true,
+          }}
+        />
+      ) : null}
       <section className="mx-auto max-w-3xl rounded-2xl border bg-card p-5 shadow-xs sm:p-8">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Checkout success

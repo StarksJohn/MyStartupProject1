@@ -69,9 +69,13 @@ export async function GET() {
       },
     });
   } catch (error) {
+    const errorMeta =
+      error instanceof Error
+        ? { name: error.name, message: error.message }
+        : { kind: typeof error };
     console.error("Failed to generate completion report", {
       userId: session.user.id,
-      error,
+      ...errorMeta,
     });
 
     return NextResponse.json(

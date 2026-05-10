@@ -13,7 +13,7 @@
 # 排序规则：按 epic 升序、story 升序；本文件顺序即 create-story 自动发现顺序。
 
 project: Fracture Recovery AI Companion
-last_updated: 2026-05-09
+last_updated: 2026-05-10
 
 development_status:
   # --- Epic 1: Discover and Trust the Recovery Coach ---
@@ -53,14 +53,14 @@ development_status:
   5-4-quota-control-provider-fallback-and-error-recovery: done
 
   # --- Epic 6: Finish the Program and Share Outcomes ---
-  epic-6: in-progress
+  epic-6: done
   6-1-completion-experience-for-day-14: done
-  6-2-downloadable-summary-report: code-review
-  6-3-simple-sharing-flow: backlog
+  6-2-downloadable-summary-report: done
+  6-3-simple-sharing-flow: done
 
   # --- Epic 7: Operate, Measure, and Launch Reliably ---
-  epic-7: backlog
-  7-1-product-analytics-and-funnel-events: backlog
+  epic-7: in-progress
+  7-1-product-analytics-and-funnel-events: code-review
   7-2-monitoring-and-error-observability: backlog
   7-3-payment-failure-refund-and-support-recovery-paths: backlog
   7-4-launch-readiness-qa-and-regression-safety-net: backlog

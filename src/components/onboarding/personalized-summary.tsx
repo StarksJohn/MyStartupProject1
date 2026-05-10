@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics/client";
 import type { RecoveryProfileInput } from "@/lib/onboarding/recovery-profile";
 import {
   formatDominantHandImpact,
@@ -47,6 +48,7 @@ export function PersonalizedSummary({
     setStatus("redirecting");
     setErrorMessage(null);
     setErrorRedirectTo(null);
+    trackEvent("checkout_start", { surface: "personalized_summary" });
 
     try {
       const response = await fetch("/api/checkout", {

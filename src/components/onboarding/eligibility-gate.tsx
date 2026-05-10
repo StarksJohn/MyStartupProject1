@@ -2,10 +2,11 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
+import { trackEvent } from "@/lib/analytics/client";
 import { PersonalizedSummary } from "@/components/onboarding/personalized-summary";
 import { RecoveryProfileForm } from "@/components/onboarding/recovery-profile-form";
 import { Button } from "@/components/ui/button";
@@ -193,6 +194,7 @@ export function EligibilityGate({ userEmail }: EligibilityGateProps) {
   );
   const [submittedAnswers, setSubmittedAnswers] =
     useState<EligibilityGateAnswers | null>(null);
+  const quizStartedRef = useRef(false);
   const {
     control,
     formState: { errors },
@@ -211,6 +213,22 @@ export function EligibilityGate({ userEmail }: EligibilityGateProps) {
 
   function onSubmit(answers: EligibilityGateAnswers) {
     setSubmittedAnswers(answers);
+    trackEvent("quiz_submit", {
+      surface: "onboarding",
+      result: classifyEligibility(answers),
+    });
+  }
+
+  function trackQuizStartOnce() {
+    if (quizStartedRef.current) {
+      return;
+    }
+
+    quizStartedRef.current = true;
+    trackEvent("quiz_start", {
+      surface: "onboarding",
+      step: "eligibility",
+    });
   }
 
   const currentAnswers = {
@@ -282,6 +300,7 @@ export function EligibilityGate({ userEmail }: EligibilityGateProps) {
         <form
           className="mt-6 space-y-6"
           noValidate
+          onChange={trackQuizStartOnce}
           onSubmit={handleSubmit(onSubmit)}
         >
           {questions.map((question) => (

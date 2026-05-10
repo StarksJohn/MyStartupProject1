@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics/client";
 import { evaluateChatSafety } from "@/lib/chat/safety";
 
 interface ChatCitation {
@@ -75,6 +76,7 @@ export function ChatEntryShell({
     setCitations([]);
     setEscalation(null);
     setFallbackNotice("");
+    trackEvent("chat_sent", { surface: "chat" });
 
     if (quotaExceeded && !evaluateChatSafety(question).escalated) {
       setMessages((current) => [
@@ -169,6 +171,7 @@ export function ChatEntryShell({
           }
 
           if (event.type === "escalation") {
+            trackEvent("chat_escalated", { surface: "chat" });
             setEscalation({
               message: event.message,
               matchedTerms: event.matchedTerms,

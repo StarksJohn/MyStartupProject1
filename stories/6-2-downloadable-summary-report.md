@@ -1,6 +1,6 @@
 # Story 6.2: Downloadable Summary Report
 
-Status: code-review
+Status: done
 
 <!-- Note: Created by bmad-create-story after Story 6.1 was implemented, lightly reviewed, patched, validated, and marked done. -->
 
@@ -321,3 +321,32 @@ GPT-5.5
 
 - 2026-05-10: Created Story 6.2 with protected downloadable summary report scope, dependency-conscious PDF/equivalent boundary, safety/privacy guardrails, sharing/analytics exclusions, and focused regression guidance; story marked ready-for-dev.
 - 2026-05-10: Implemented dependency-free downloadable HTML summary report, protected report route, completion CTA, recoverable error feedback, focused E2E coverage, and validation; story marked code-review.
+- 2026-05-10: Light `bmad-code-review`: AC 对齐与边界核查通过；已修复 `GET /api/program/report` 异常路径日志仅记录安全元数据（Error 的 name/message），避免整对象/stack 写入日志；story 标记 done。
+
+## Review Findings (Story 6.2)
+
+### Blind Hunter（误导 / 产品边界）
+
+- [x] **无** 将产物标成 PDF：`Content-Type` 为 `text/html; charset=utf-8`，文件名为 `.html`，与 AC3「PDF 或等价可下载格式」一致；未引入 PDF 依赖。
+- [x] **无** completion CTA 伪装成分享：`ReportDownloadAction` 为 `fetch` + Blob 下载，无 Web Share / copy-link / 社交文案。
+- [x] **无** 下载响应缓存导致串号：成功与错误响应均带 `Cache-Control: no-store`。
+
+### Edge Case Hunter（异常与泄露）
+
+- [x] **已处理** 异常处理器原先把整颗 `error` 打进 `console.error`，与 AC7「仅安全元数据」有偏差；已改为仅展开 `Error` 的 `name` / `message`（或 `typeof`）。
+- [x] **低优先级 / 不修改** 客户端对所有非 2xx 统一展示「请重试」：对真实已完成用户极少出现 403；若未来要在 UI 区分「需重新登录」与「请重试」，可再解析 JSON `message`。
+- [x] **低优先级 / 不修改** `link.download` 与 `completionReportFilename` 字面量重复：可日后抽到共享常量，当前风险低。
+
+### Acceptance Auditor（对照 AC）
+
+- AC1–2：仅 `COMPLETED` + paid resolver 生成；未鉴权 401 JSON、active 403 JSON，不返回 HTML 报告体。
+- AC3：`attachment`、`text/html; charset=utf-8`、稳定文件名。
+- AC4–5：非诊断与安全边界 + danger-signal；表格字段经 `escapeHtml`；不含 `contentJson`、内部 ID、支付/chat 等（E2E 已断言）。
+- AC6–7：completion 页 CTA + `role="alert"` 错误区；服务端失败日志收紧。
+- AC8：`missing_day_content` / 缺失 title、focus → 409，不输出畸形日程正文。
+- AC9：未改 schema、无 analytics 事件名、无 report 持久化（检索与测试一致）。
+- AC10：`program-entry.spec.ts` 覆盖下载头、401/403/409、内容边界、UI 失败、无 share/analytics 字符串。
+
+### 结论
+
+**Approved with patch applied**（日志安全化）；无 sharing / analytics / schema creep 问题需跟进入线。

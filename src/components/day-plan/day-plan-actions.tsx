@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { ExerciseCards } from "@/components/day-plan/exercise-cards";
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics/client";
 import type { DayExerciseCard } from "@/lib/program/current-program-service";
 
 interface DayPlanActionsProps {
@@ -74,6 +75,11 @@ export function DayPlanActions({ day, exercises }: DayPlanActionsProps) {
 
       setShowConfirmation(false);
       setFeedback(body.message ?? "Day marked complete.");
+      trackEvent("day_completed", {
+        surface: "day",
+        day,
+        program_completed: body.programStatus === "COMPLETED",
+      });
       window.setTimeout(() => {
         if (body.programStatus === "COMPLETED") {
           router.push("/completion");

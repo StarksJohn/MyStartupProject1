@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics/client";
 
 export function ReportDownloadAction() {
   const [isDownloading, setIsDownloading] = useState(false);
@@ -25,6 +26,7 @@ export function ReportDownloadAction() {
         return;
       }
 
+      trackEvent("completion_report_view", { surface: "completion" });
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProgramStatus } from "@prisma/client";
 
+import { CompletionShareAction } from "@/components/completion/completion-share-action";
 import { ReportDownloadAction } from "@/components/completion/report-download-action";
 import { Button } from "@/components/ui/button";
 import { getAuthSession } from "@/lib/auth/session";
@@ -130,12 +131,14 @@ export default async function CompletionPage() {
           </h2>
           <ul className="mt-4 space-y-2 text-sm leading-6 text-muted-foreground">
             <li>- Download your non-diagnostic summary for personal reference.</li>
+            <li>- Share the public product link without exposing your recovery details.</li>
             <li>- Review Day 14 if you want to revisit the final guidance.</li>
             <li>- Keep following any clinician-approved routines you were given.</li>
             <li>- Use Chat only for non-urgent educational questions.</li>
           </ul>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <ReportDownloadAction />
+            <CompletionShareAction />
             <Button asChild>
               <Link href="/day/14">Review Day 14</Link>
             </Button>

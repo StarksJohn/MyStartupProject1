@@ -1125,7 +1125,7 @@ test.describe("program entry", () => {
     await expect(page.getByTestId("completion-page")).toHaveCount(0);
   });
 
-  test("completed users can revisit completion without report or share controls", async ({
+  test("completed users can revisit completion with report and share actions", async ({
     page,
   }) => {
     test.setTimeout(150_000);
@@ -1166,6 +1166,7 @@ test.describe("program entry", () => {
       "Review Day 14"
     );
     await expect(page.getByTestId("completion-report-download")).toBeVisible();
+    await expect(page.getByTestId("completion-share-action")).toBeVisible();
     await expect(page.getByTestId("completion-safety-boundary")).toContainText(
       "does not diagnose"
     );
@@ -1333,6 +1334,156 @@ test.describe("program entry", () => {
     await expect(page.getByTestId("completion-report-error")).toContainText(
       "Please try again"
     );
+  });
+
+  test("completed users can share only the public product link", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + share coverage only runs once."
+    );
+
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (payload: ShareData) => {
+          (window as Window & { __sharePayload?: ShareData }).__sharePayload =
+            payload;
+        },
+      });
+    });
+
+    const email = `${Date.now()}-completion-share@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 14,
+      programStatus: ProgramStatus.COMPLETED,
+    });
+    await signInAs(page, email);
+
+    await page.goto("/completion");
+    await expect(page.getByTestId("completion-share-action")).toBeVisible();
+    await page.getByTestId("completion-share-action").click();
+    await expect(page.getByTestId("completion-share-feedback")).toContainText(
+      "Share link ready"
+    );
+
+    const payload = await page.evaluate(
+      () => (window as Window & { __sharePayload?: ShareData }).__sharePayload
+    );
+    expect(payload).toMatchObject({
+      title: "Fracture Recovery Companion",
+      text: "I finished a 14-day recovery companion. It is educational support, not medical advice.",
+      url: `${new URL(page.url()).origin}/`,
+    });
+    const serializedPayload = JSON.stringify(payload);
+    expect(serializedPayload).not.toContain("Finger");
+    expect(serializedPayload).not.toContain("Proximal");
+    expect(serializedPayload).not.toContain("recovery-summary-report");
+    expect(serializedPayload).not.toContain("contentJson");
+    expect(serializedPayload).not.toContain("stripe");
+    expect(serializedPayload).not.toContain("chat");
+    expect(serializedPayload).not.toContain("referral");
+    expect(serializedPayload).not.toContain("share_click");
+  });
+
+  test("completed users can copy the public link when native sharing is unavailable", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + share fallback coverage only runs once."
+    );
+
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: undefined,
+      });
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (value: string) => {
+            (window as Window & { __copiedShareUrl?: string }).__copiedShareUrl =
+              value;
+          },
+        },
+      });
+    });
+
+    const email = `${Date.now()}-completion-copy-share@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 14,
+      programStatus: ProgramStatus.COMPLETED,
+    });
+    await signInAs(page, email);
+
+    await page.goto("/completion");
+    await page.getByTestId("completion-share-action").click();
+    await expect(page.getByTestId("completion-share-feedback")).toContainText(
+      "Product link copied"
+    );
+
+    const copiedUrl = await page.evaluate(
+      () => (window as Window & { __copiedShareUrl?: string }).__copiedShareUrl
+    );
+    expect(copiedUrl).toBe(`${new URL(page.url()).origin}/`);
+  });
+
+  test("completion sharing shows recoverable feedback when share and copy fail", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + share failure coverage only runs once."
+    );
+
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async () => {
+          throw new Error("native share unavailable");
+        },
+      });
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async () => {
+            throw new Error("clipboard unavailable");
+          },
+        },
+      });
+    });
+
+    const email = `${Date.now()}-completion-share-failure@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      currentDay: 14,
+      programStatus: ProgramStatus.COMPLETED,
+    });
+    await signInAs(page, email);
+
+    await page.goto("/completion");
+    await page.getByTestId("completion-share-action").click();
+    await expect(page.getByTestId("completion-share-feedback")).toContainText(
+      "copy the product link instead"
+    );
+    await expect(page.getByTestId("completion-share-feedback")).toContainText(
+      `${new URL(page.url()).origin}/`
+    );
+    await expect(page.getByTestId("completion-report-download")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Review Day 14" })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Ask a non-urgent question" })
+    ).toBeVisible();
   });
 
   test("day 14 completion marks program completed and routes to completion", async ({
