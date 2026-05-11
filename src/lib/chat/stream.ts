@@ -1,4 +1,5 @@
 import type { ChatStreamEvent } from "./types";
+import { captureError } from "@/lib/observability/server";
 
 export function encodeChatEvent(event: ChatStreamEvent) {
   return `${JSON.stringify(event)}\n`;
@@ -32,6 +33,12 @@ export function createChatStream({
 
         controller.close();
       } catch (error) {
+        captureError(error, {
+          flow: "chat_stream",
+          operation: "finalize_stream",
+          status: "stream_failed",
+          severity: "warning",
+        });
         controller.enqueue(
           encoder.encode(
             encodeChatEvent({

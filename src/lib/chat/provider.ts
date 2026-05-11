@@ -1,4 +1,5 @@
 import type { ChatCitation, ChatContext } from "./types";
+import { captureError } from "@/lib/observability/server";
 
 const primaryProviderName = "gemini";
 const primaryModelName = "gemini-1.5-flash";
@@ -202,6 +203,14 @@ export async function generateChatAnswer({
       usedFallback: false,
     };
   } catch (primaryError) {
+    captureError(primaryError, {
+      flow: "chat",
+      operation: "primary_provider_fallback",
+      provider: primaryProviderName,
+      status: "provider_fallback",
+      used_fallback: true,
+      severity: "warning",
+    });
     console.error("Primary chat provider failed; trying fallback", {
       provider: primaryProviderName,
       error: primaryError,

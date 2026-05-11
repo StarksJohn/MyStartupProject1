@@ -52,6 +52,13 @@ export async function GET() {
       { status: 200 }
     );
   } catch (error) {
+    const { captureError } = await import("@/lib/observability/server");
+    captureError(error, {
+      flow: "auth_session",
+      operation: "resolve_current_program",
+      route: "/api/program/current",
+      status: "current_program_unavailable",
+    });
     console.error("Failed to resolve current program", {
       userId: session.user.id,
       error,

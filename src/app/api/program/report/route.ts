@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getAuthSession } from "@/lib/auth/session";
+import { captureError, captureMessage } from "@/lib/observability/server";
 import {
   buildCompletionReportForUser,
   completionReportFilename,
@@ -41,6 +42,13 @@ export async function GET() {
     const report = await buildCompletionReportForUser(session.user.id);
 
     if (report.status !== "ready") {
+      captureMessage("completion_report_unavailable", {
+        flow: "completion_report",
+        operation: "resolve_report_content",
+        route: "/api/program/report",
+        status: report.status,
+        severity: "warning",
+      });
       console.error("Completion report unavailable", {
         userId: session.user.id,
         programId: report.programId,
@@ -69,6 +77,12 @@ export async function GET() {
       },
     });
   } catch (error) {
+    captureError(error, {
+      flow: "completion_report",
+      operation: "generate_report",
+      route: "/api/program/report",
+      status: "unavailable",
+    });
     const errorMeta =
       error instanceof Error
         ? { name: error.name, message: error.message }

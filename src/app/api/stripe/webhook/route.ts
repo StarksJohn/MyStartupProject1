@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import Stripe from "stripe";
 
 import { handleVerifiedStripeEvent } from "@/lib/billing/webhook-service";
+import { captureError, captureMessage } from "@/lib/observability/server";
 
 let stripeClient: Stripe | null = null;
 
@@ -34,6 +35,13 @@ export async function POST(request: NextRequest) {
       webhookSecret
     );
   } catch (error) {
+    captureMessage("stripe_webhook_signature_invalid", {
+      flow: "billing_webhook",
+      operation: "verify_signature",
+      route: "/api/stripe/webhook",
+      status: "stripe_webhook_signature_invalid",
+      severity: "warning",
+    });
     console.warn("Stripe webhook signature verification failed", { error });
 
     return NextResponse.json(
@@ -46,6 +54,14 @@ export async function POST(request: NextRequest) {
     const result = await handleVerifiedStripeEvent(event);
     return NextResponse.json({ received: true, status: result.status });
   } catch (error) {
+    captureError(error, {
+      flow: "billing_webhook",
+      operation: "process_event",
+      route: "/api/stripe/webhook",
+      status: "stripe_webhook_processing_failed",
+      stripe_event_id: event.id,
+      stripe_event_type: event.type,
+    });
     console.error("Stripe webhook processing failed", {
       eventId: event.id,
       type: event.type,

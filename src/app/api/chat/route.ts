@@ -13,6 +13,7 @@ import { evaluateChatSafety } from "@/lib/chat/safety";
 import { createChatStream } from "@/lib/chat/stream";
 import type { ChatStreamEvent } from "@/lib/chat/types";
 import { getAuthSession } from "@/lib/auth/session";
+import { captureError } from "@/lib/observability/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -177,6 +178,12 @@ export async function POST(request: Request) {
       testMode: readProviderTestMode(request),
     });
   } catch (error) {
+    captureError(error, {
+      flow: "chat",
+      operation: "generate_answer",
+      route: "/api/chat",
+      status: "chat_generation_failed",
+    });
     console.error("Failed to generate chat answer", {
       userId: session.user.id,
       programId: context.programId,
@@ -241,6 +248,13 @@ export async function POST(request: Request) {
         try {
           await consumeChatQuota(context.userId);
         } catch (error) {
+          captureError(error, {
+            flow: "chat_quota",
+            operation: "consume_quota",
+            route: "/api/chat",
+            status: "quota_consume_failed",
+            severity: "warning",
+          });
           console.error("Failed to consume chat quota", {
             userId: context.userId,
             quotaKey: quotaState.key,

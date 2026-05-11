@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createCheckoutSession } from "@/lib/billing/purchase-service";
 import { getAuthSession } from "@/lib/auth/session";
+import { captureError } from "@/lib/observability/server";
 import { prisma } from "@/lib/prisma";
 
 export async function POST() {
@@ -31,6 +32,12 @@ export async function POST() {
 
     return NextResponse.json(checkoutSession);
   } catch (error) {
+    captureError(error, {
+      flow: "checkout",
+      operation: "create_checkout_session",
+      route: "/api/checkout",
+      status: "stripe_checkout_unavailable",
+    });
     console.error("Failed to create Stripe Checkout session", {
       userId: session.user.id,
       error,

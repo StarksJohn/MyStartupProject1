@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { Prisma, PurchaseStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { captureError, captureMessage } from "@/lib/observability/server";
 import {
   prepareTemplateFirstProgramForUser,
   provisionProgramForPaidPurchase,
@@ -55,6 +56,12 @@ async function handleCheckoutCompleted(
   const userId = session.client_reference_id?.trim();
 
   if (!userId) {
+    captureMessage("stripe_checkout_missing_client_reference", {
+      flow: "billing_webhook",
+      operation: "checkout_completed_missing_user_reference",
+      status: "ignored",
+      severity: "info",
+    });
     console.warn("Stripe checkout completed without client_reference_id", {
       checkoutSessionId: session.id,
     });
@@ -67,6 +74,12 @@ async function handleCheckoutCompleted(
   });
 
   if (!user) {
+    captureMessage("stripe_checkout_missing_user", {
+      flow: "billing_webhook",
+      operation: "checkout_completed_missing_user",
+      status: "ignored",
+      severity: "info",
+    });
     console.warn("Stripe checkout completed for missing user", {
       checkoutSessionId: session.id,
       userId,
@@ -169,6 +182,13 @@ async function processVerifiedStripeEvent(
     case "charge.refunded":
       return handleChargeRefunded(event.data.object as Stripe.Charge);
     default:
+      captureMessage("stripe_webhook_ignored_event", {
+        flow: "billing_webhook",
+        operation: "ignore_unsupported_event",
+        status: "ignored",
+        stripe_event_type: event.type,
+        severity: "info",
+      });
       console.info("Unhandled Stripe webhook event", { type: event.type });
       return { status: "ignored" };
   }
@@ -234,6 +254,14 @@ export async function handleVerifiedStripeEvent(
           },
         })
         .catch((cleanupError) => {
+          captureError(cleanupError, {
+            flow: "billing_webhook",
+            operation: "cleanup_unprocessed_event_lock",
+            status: "cleanup_failed",
+            stripe_event_id: event.id,
+            stripe_event_type: event.type,
+            severity: "warning",
+          });
           console.error("Failed to clean up unprocessed Stripe event lock", {
             eventId: event.id,
             cleanupError,

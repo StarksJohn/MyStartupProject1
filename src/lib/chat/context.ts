@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 
+import { captureError } from "@/lib/observability/server";
 import { prisma } from "@/lib/prisma";
 import { resolveCurrentProgramForUser } from "@/lib/program/current-program-service";
 
@@ -254,6 +255,12 @@ async function retrieveCitations({
         excerpt: buildExcerpt(chunk.content),
       }));
   } catch (error) {
+    captureError(error, {
+      flow: "rag_retrieval",
+      operation: "retrieve_citations",
+      status: "citations_unavailable",
+      severity: "warning",
+    });
     console.error("Failed to retrieve chat citations", { error });
     return [];
   }

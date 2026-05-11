@@ -115,6 +115,13 @@ export const authOptions: NextAuthOptions = {
           token.hasPurchase = Boolean(activeProgram);
           token.activeProgramId = activeProgram?.id ?? null;
         } catch (error) {
+          const { captureError } = await import("@/lib/observability/server");
+          captureError(error, {
+            flow: "auth_session",
+            operation: "resolve_purchase_state",
+            status: "fallback_no_purchase",
+            severity: "warning",
+          });
           console.error("Failed to resolve purchase session state", {
             userId: token.id,
             error,

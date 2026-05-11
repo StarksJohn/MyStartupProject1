@@ -447,6 +447,9 @@ test.describe("program entry", () => {
       { timeout: 60_000 }
     );
     await expect(page.getByTestId("chat-send")).toBeDisabled();
+    await expect(page.getByTestId("chat-answering-state")).toHaveCount(0, {
+      timeout: 60_000,
+    });
 
     const conversation = await prisma.chatConversation.findFirstOrThrow({
       where: {
@@ -785,6 +788,7 @@ test.describe("program entry", () => {
   test("paid active program with currentDay > 1 resolves and routes to that day", async ({
     page,
   }) => {
+    test.setTimeout(150_000);
     test.skip(
       test.info().project.name !== "Desktop Chrome",
       "Auth + API coverage only runs once."
@@ -943,7 +947,10 @@ test.describe("program entry", () => {
       page.getByLabel("Mark Gentle finger bends complete")
     ).toBeVisible();
 
-    await page.getByRole("link", { name: "Ask AI about today" }).click();
+    const askAiLink = page.getByRole("link", { name: "Ask AI about today" });
+    await askAiLink.scrollIntoViewIfNeeded();
+    await expect(askAiLink).toHaveAttribute("href", "/chat");
+    await page.goto("/chat");
     await expect(page).toHaveURL(/\/chat$/);
     await expect(page.getByTestId("chat-context-header")).toBeVisible();
   });

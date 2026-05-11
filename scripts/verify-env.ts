@@ -9,7 +9,7 @@
  *   - DATABASE_URL
  *   - EMAIL_SERVER
  *   - EMAIL_FROM
- *   - Sentry DSN (optional but warned)
+ *   - Sentry DSN (optional locally, required for production monitoring)
  *   - STRIPE_SECRET_KEY (required in production, dev-mocked locally)
  *
  * Additional keys (GEMINI, GROQ, UPSTASH_*) are added
@@ -77,12 +77,29 @@ const ENV_REQUIREMENTS: EnvRequirement[] = [
   {
     name: "SENTRY_DSN",
     required: false,
-    description: "Server-side Sentry DSN (optional in dev)",
+    requiredInProduction: true,
+    description: "Server-side Sentry DSN for production API/service failures",
   },
   {
     name: "NEXT_PUBLIC_SENTRY_DSN",
     required: false,
-    description: "Client-side Sentry DSN (optional in dev)",
+    requiredInProduction: true,
+    description: "Client-side Sentry DSN for production render boundaries",
+  },
+  {
+    name: "SENTRY_ORG",
+    required: false,
+    description: "Sentry organization slug for optional production source maps",
+  },
+  {
+    name: "SENTRY_PROJECT",
+    required: false,
+    description: "Sentry project slug for optional production source maps",
+  },
+  {
+    name: "SENTRY_AUTH_TOKEN",
+    required: false,
+    description: "Sentry auth token for optional production source maps",
   },
   {
     name: "STRIPE_SECRET_KEY",

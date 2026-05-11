@@ -1,6 +1,7 @@
 import { ChatMessageRole } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { captureError } from "@/lib/observability/server";
 
 export const DAILY_CHAT_QUOTA_LIMIT = 20;
 
@@ -129,6 +130,13 @@ export async function getChatQuotaState(userId: string, now = new Date()) {
     try {
       return await getUpstashQuotaState(userId, now);
     } catch (error) {
+      captureError(error, {
+        flow: "chat_quota",
+        operation: "upstash_read",
+        status: "fallback_to_database",
+        used_fallback: true,
+        severity: "warning",
+      });
       console.error("Failed to read chat quota from Upstash", { userId, error });
     }
   }

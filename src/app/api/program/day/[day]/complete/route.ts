@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getAuthSession } from "@/lib/auth/session";
+import { captureError } from "@/lib/observability/server";
 import { completeProgramDayForUser } from "@/lib/program/day-completion-service";
 
 export const dynamic = "force-dynamic";
@@ -68,6 +69,13 @@ export async function POST(_request: Request, { params }: CompleteDayRouteProps)
       status: statusCodeForResult(result.status),
     });
   } catch (error) {
+    captureError(error, {
+      flow: "day_completion",
+      operation: "complete_day",
+      route: "/api/program/day/[day]/complete",
+      status: "completion_unavailable",
+      day: requestedDay,
+    });
     console.error("Failed to complete program day", {
       userId: session.user.id,
       requestedDay,
