@@ -44,6 +44,9 @@ export interface DayExerciseCard {
 export type CurrentProgramState =
   | { status: "ready"; program: CurrentProgramEntry }
   | { status: "missing_program_recovered"; program: CurrentProgramEntry }
+  | { status: "payment_pending" }
+  | { status: "payment_failed" }
+  | { status: "purchase_refunded" }
   | { status: "no_purchase" }
   | { status: "missing_profile"; purchaseId: string }
   | {
@@ -322,25 +325,30 @@ async function loadActiveProgramEntry(
   };
 }
 
-async function findLatestPaidPurchaseWithoutActiveProgram(
+async function findLatestPurchaseWithoutActiveProgram(
   userId: string
-): Promise<{ purchaseId: string } | null> {
+): Promise<{ purchaseId: string; status: PurchaseStatus } | null> {
   const purchase = await prisma.purchase.findFirst({
     where: {
       userId,
-      status: PurchaseStatus.PAID,
       OR: [
-        { program: { is: null } },
-        { program: { is: { status: ProgramStatus.EXPIRED } } },
+        { status: { in: [PurchaseStatus.PENDING, PurchaseStatus.FAILED, PurchaseStatus.REFUNDED] } },
+        {
+          status: PurchaseStatus.PAID,
+          OR: [
+            { program: { is: null } },
+            { program: { is: { status: ProgramStatus.EXPIRED } } },
+          ],
+        },
       ],
     },
     orderBy: {
       createdAt: "desc",
     },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
-  return purchase ? { purchaseId: purchase.id } : null;
+  return purchase ? { purchaseId: purchase.id, status: purchase.status } : null;
 }
 
 async function attemptMissingProgramRecovery(
@@ -391,11 +399,23 @@ export async function resolveCurrentProgramForUser(
     return { status: "ready", program: activeProgram.entry };
   }
 
-  const paidPurchaseWithoutProgram =
-    await findLatestPaidPurchaseWithoutActiveProgram(userId);
+  const purchaseWithoutActiveProgram =
+    await findLatestPurchaseWithoutActiveProgram(userId);
 
-  if (!paidPurchaseWithoutProgram) {
+  if (!purchaseWithoutActiveProgram) {
     return { status: "no_purchase" };
+  }
+
+  if (purchaseWithoutActiveProgram.status === PurchaseStatus.PENDING) {
+    return { status: "payment_pending" };
+  }
+
+  if (purchaseWithoutActiveProgram.status === PurchaseStatus.FAILED) {
+    return { status: "payment_failed" };
+  }
+
+  if (purchaseWithoutActiveProgram.status === PurchaseStatus.REFUNDED) {
+    return { status: "purchase_refunded" };
   }
 
   const recoveryProfile = await prisma.recoveryProfile.findUnique({
@@ -406,19 +426,19 @@ export async function resolveCurrentProgramForUser(
   if (!recoveryProfile) {
     return {
       status: "missing_profile",
-      purchaseId: paidPurchaseWithoutProgram.purchaseId,
+      purchaseId: purchaseWithoutActiveProgram.purchaseId,
     };
   }
 
   const recoveredProgram = await attemptMissingProgramRecovery(
     userId,
-    paidPurchaseWithoutProgram.purchaseId
+    purchaseWithoutActiveProgram.purchaseId
   );
 
   if (!recoveredProgram) {
     return {
       status: "missing_profile",
-      purchaseId: paidPurchaseWithoutProgram.purchaseId,
+      purchaseId: purchaseWithoutActiveProgram.purchaseId,
     };
   }
 

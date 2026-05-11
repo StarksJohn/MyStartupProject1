@@ -24,6 +24,7 @@ function createDevUserId(email: string) {
 interface SeededProgramOptions {
   withProfile?: boolean;
   withProgram?: boolean;
+  purchaseStatus?: PurchaseStatus;
   currentDay?: number;
   programStatus?: ProgramStatus;
   programDayContent?: Prisma.InputJsonValue | null;
@@ -141,6 +142,7 @@ async function seedPaidPurchaseAndProgram(
   }
 
   const checkoutSessionId = uniqueId("cs_program_entry");
+  const purchaseStatus = options.purchaseStatus ?? PurchaseStatus.PAID;
   const purchase = await prisma.purchase.create({
     data: {
       userId,
@@ -148,8 +150,14 @@ async function seedPaidPurchaseAndProgram(
       stripePaymentIntentId: uniqueId("pi_program_entry"),
       amount: 1499,
       currency: "usd",
-      status: PurchaseStatus.PAID,
-      paidAt: new Date(),
+      status: purchaseStatus,
+      paidAt:
+        purchaseStatus === PurchaseStatus.PAID ||
+        purchaseStatus === PurchaseStatus.REFUNDED
+          ? new Date()
+          : undefined,
+      refundedAt:
+        purchaseStatus === PurchaseStatus.REFUNDED ? new Date() : undefined,
     },
   });
 
@@ -1943,6 +1951,95 @@ test.describe("program entry", () => {
     await expect(
       page.getByRole("link", { name: "Back to onboarding" })
     ).toBeVisible();
+  });
+
+  test("billing-blocked purchases return explicit API and progress states", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + billing recovery coverage only runs once."
+    );
+
+    const cases = [
+      {
+        status: PurchaseStatus.PENDING,
+        expectedStatus: "payment_pending",
+        heading: "Your payment is still confirming",
+        primaryLink: "Refresh progress",
+      },
+      {
+        status: PurchaseStatus.FAILED,
+        expectedStatus: "payment_failed",
+        heading: "Your payment did not complete",
+        primaryLink: "Retry checkout",
+      },
+      {
+        status: PurchaseStatus.REFUNDED,
+        expectedStatus: "purchase_refunded",
+        heading: "Access was revoked after a refund",
+        primaryLink: "Read refund policy",
+      },
+    ] as const;
+
+    for (const item of cases) {
+      const email = `dev-billing-${item.expectedStatus}-${Date.now()}@example.com`;
+      const userId = await seedDevUser(email);
+      await seedPaidPurchaseAndProgram(userId, {
+        withProgram: item.status === PurchaseStatus.REFUNDED,
+        purchaseStatus: item.status,
+      });
+      await signInAs(page, email);
+
+      const apiResponse = await page.request.get("/api/program/current");
+      expect(apiResponse.status()).toBe(200);
+      await expect(apiResponse.json()).resolves.toMatchObject({
+        status: item.expectedStatus,
+        redirectTo: "/progress",
+      });
+
+      const sessionResponse = await page.request.get("/api/auth/session");
+      expect(sessionResponse.status()).toBe(200);
+      const sessionBody = await sessionResponse.json();
+      expect(sessionBody.user.hasPurchase).toBe(false);
+      expect(sessionBody.user.activeProgramId).toBeNull();
+
+      await page.goto("/progress");
+      await expect(page.getByTestId("progress-fallback")).toBeVisible();
+      await expect(page.getByRole("heading", { name: item.heading })).toBeVisible();
+      await expect(page.getByRole("link", { name: item.primaryLink })).toBeVisible();
+    }
+  });
+
+  test("billing-blocked day and chat routes redirect to progress", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Auth + billing route recovery coverage only runs once."
+    );
+
+    const email = `dev-refunded-route-${Date.now()}@example.com`;
+    const userId = await seedDevUser(email);
+    await seedPaidPurchaseAndProgram(userId, {
+      withProgram: true,
+      purchaseStatus: PurchaseStatus.REFUNDED,
+    });
+    await signInAs(page, email);
+
+    await page.goto("/day/1");
+    await expect(page).toHaveURL(/\/progress$/);
+    await expect(
+      page.getByRole("heading", { name: "Access was revoked after a refund" })
+    ).toBeVisible();
+
+    await page.goto("/chat");
+    await expect(page).toHaveURL(/\/progress$/);
+    await expect(page.getByTestId("chat-context-header")).toHaveCount(0);
   });
 
   test("unauthenticated /progress and /day/[day] redirect to sign-in", async ({

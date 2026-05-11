@@ -62,5 +62,5 @@ development_status:
   epic-7: in-progress
   7-1-product-analytics-and-funnel-events: done
   7-2-monitoring-and-error-observability: done
-  7-3-payment-failure-refund-and-support-recovery-paths: ready-for-dev
+  7-3-payment-failure-refund-and-support-recovery-paths: code-review
   7-4-launch-readiness-qa-and-regression-safety-net: backlog

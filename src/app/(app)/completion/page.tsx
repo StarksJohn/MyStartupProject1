@@ -37,6 +37,14 @@ export default async function CompletionPage() {
     redirect("/onboarding");
   }
 
+  if (
+    state.status === "payment_pending" ||
+    state.status === "payment_failed" ||
+    state.status === "purchase_refunded"
+  ) {
+    redirect("/progress");
+  }
+
   if (state.status === "missing_day_content") {
     console.error("Missing completion page program content", {
       userId: session.user.id,

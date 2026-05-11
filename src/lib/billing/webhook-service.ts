@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { Prisma, PurchaseStatus } from "@prisma/client";
+import { Prisma, ProgramStatus, PurchaseStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { captureError, captureMessage } from "@/lib/observability/server";
@@ -140,11 +140,47 @@ async function handlePaymentIntentFailed(
   const updated = await prisma.purchase.updateMany({
     where: {
       stripePaymentIntentId: paymentIntent.id,
+      status: { in: [PurchaseStatus.PENDING, PurchaseStatus.FAILED] },
     },
     data: {
       status: PurchaseStatus.FAILED,
     },
   });
+
+  if (updated.count === 0) {
+    captureMessage("stripe_payment_failure_unmatched_or_unlocked", {
+      flow: "billing_webhook",
+      operation: "payment_intent_failed_no_pending_purchase",
+      status: "ignored",
+      severity: "info",
+    });
+  }
+
+  return { status: updated.count > 0 ? "processed" : "ignored" };
+}
+
+async function handleCheckoutFailedOrExpired(
+  session: Stripe.Checkout.Session
+): Promise<WebhookHandlingResult> {
+  const updated = await prisma.purchase.updateMany({
+    where: {
+      stripeCheckoutSessionId: session.id,
+      status: { in: [PurchaseStatus.PENDING, PurchaseStatus.FAILED] },
+    },
+    data: {
+      status: PurchaseStatus.FAILED,
+    },
+  });
+
+  if (updated.count === 0) {
+    captureMessage("stripe_checkout_failure_unmatched_or_unlocked", {
+      flow: "billing_webhook",
+      operation: "checkout_failed_no_pending_purchase",
+      status: "ignored",
+      stripe_event_type: "checkout.session.failed_or_expired",
+      severity: "info",
+    });
+  }
 
   return { status: updated.count > 0 ? "processed" : "ignored" };
 }
@@ -158,17 +194,66 @@ async function handleChargeRefunded(
     return { status: "ignored" };
   }
 
-  const updated = await prisma.purchase.updateMany({
-    where: {
-      stripePaymentIntentId: paymentIntentId,
-    },
-    data: {
-      status: PurchaseStatus.REFUNDED,
-      refundedAt: new Date(),
-    },
+  const result = await prisma.$transaction(async (tx) => {
+    const purchase = await tx.purchase.findUnique({
+      where: {
+        stripePaymentIntentId: paymentIntentId,
+      },
+      select: {
+        id: true,
+        status: true,
+        program: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    if (!purchase) {
+      return { purchaseUpdated: false, programId: null as string | null };
+    }
+
+    await tx.purchase.update({
+      where: {
+        id: purchase.id,
+      },
+      data: {
+        status: PurchaseStatus.REFUNDED,
+        refundedAt: new Date(),
+      },
+    });
+
+    if (purchase.program) {
+      await tx.program.update({
+        where: {
+          id: purchase.program.id,
+        },
+        data: {
+          status: ProgramStatus.EXPIRED,
+        },
+      });
+    }
+
+    return {
+      purchaseUpdated: true,
+      programId: purchase.program?.id ?? null,
+    };
   });
 
-  return { status: updated.count > 0 ? "processed" : "ignored" };
+  if (!result.purchaseUpdated) {
+    captureMessage("stripe_refund_unmatched_purchase", {
+      flow: "billing_webhook",
+      operation: "charge_refunded_no_purchase",
+      status: "ignored",
+      severity: "info",
+    });
+  }
+
+  return {
+    status: result.purchaseUpdated ? "processed" : "ignored",
+    programId: result.programId,
+  };
 }
 
 async function processVerifiedStripeEvent(
@@ -179,6 +264,11 @@ async function processVerifiedStripeEvent(
       return handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
     case "payment_intent.payment_failed":
       return handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+    case "checkout.session.async_payment_failed":
+    case "checkout.session.expired":
+      return handleCheckoutFailedOrExpired(
+        event.data.object as Stripe.Checkout.Session
+      );
     case "charge.refunded":
       return handleChargeRefunded(event.data.object as Stripe.Charge);
     default:

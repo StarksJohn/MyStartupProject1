@@ -22,9 +22,20 @@ export interface ActiveProgramSummary {
   currentDay: number;
 }
 
+export type CheckoutUnlockStatus =
+  | "ready"
+  | "missing_program_recovered"
+  | "payment_pending"
+  | "payment_failed"
+  | "purchase_refunded"
+  | "missing_profile"
+  | "missing_program"
+  | "unknown_session";
+
 export interface UnlockState {
-  purchaseId: string | null;
+  status: CheckoutUnlockStatus;
   program: ActiveProgramSummary | null;
+  supportReference?: string;
 }
 
 export interface PreparedTemplateFirstProgram {
@@ -128,7 +139,7 @@ export async function getActiveProgramForUser(
   const program = await prisma.program.findFirst({
     where: {
       userId,
-      status: ProgramStatus.ACTIVE,
+      status: { in: [ProgramStatus.ACTIVE, ProgramStatus.COMPLETED] },
       purchase: {
         status: PurchaseStatus.PAID,
       },
@@ -143,6 +154,16 @@ export async function getActiveProgramForUser(
   });
 
   return program;
+}
+
+function buildSupportReference(checkoutSessionId: string) {
+  const trimmed = checkoutSessionId.trim();
+
+  if (trimmed.length <= 14) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, 6)}...${trimmed.slice(-6)}`;
 }
 
 export async function getCheckoutUnlockState({
@@ -170,20 +191,63 @@ export async function getCheckoutUnlockState({
     },
   });
 
-  if (!purchase || purchase.userId !== userId || purchase.status !== "PAID") {
-    return { purchaseId: purchase?.id ?? null, program: null };
+  if (!purchase || purchase.userId !== userId) {
+    return { status: "unknown_session", program: null };
   }
 
-  if (!purchase.program || purchase.program.status !== "ACTIVE") {
-    return { purchaseId: purchase.id, program: null };
+  const supportReference = buildSupportReference(checkoutSessionId);
+
+  if (purchase.status === PurchaseStatus.PENDING) {
+    return { status: "payment_pending", program: null, supportReference };
   }
+
+  if (purchase.status === PurchaseStatus.FAILED) {
+    return { status: "payment_failed", program: null, supportReference };
+  }
+
+  if (purchase.status === PurchaseStatus.REFUNDED) {
+    return { status: "purchase_refunded", program: null, supportReference };
+  }
+
+  if (purchase.status !== PurchaseStatus.PAID) {
+    return { status: "unknown_session", program: null };
+  }
+
+  if (
+    purchase.program &&
+    (purchase.program.status === ProgramStatus.ACTIVE ||
+      purchase.program.status === ProgramStatus.COMPLETED)
+  ) {
+    return {
+      status: "ready",
+      program: {
+        id: purchase.program.id,
+        currentDay: purchase.program.currentDay,
+      },
+      supportReference,
+    };
+  }
+
+  const preparedProgram = await prepareTemplateFirstProgramForUser(userId);
+
+  if (!preparedProgram) {
+    return { status: "missing_profile", program: null, supportReference };
+  }
+
+  const program = await prisma.$transaction(
+    async (tx) =>
+      provisionProgramForPaidPurchase(tx, {
+        userId,
+        purchaseId: purchase.id,
+        preparedProgram,
+      }),
+    { timeout: 30000 }
+  );
 
   return {
-    purchaseId: purchase.id,
-    program: {
-      id: purchase.program.id,
-      currentDay: purchase.program.currentDay,
-    },
+    status: program ? "missing_program_recovered" : "missing_program",
+    program,
+    supportReference,
   };
 }
 
@@ -342,7 +406,7 @@ export async function provisionDevMockPurchaseAndProgram(
 ): Promise<UnlockState> {
   if (process.env.NODE_ENV === "production" || process.env.STRIPE_SECRET_KEY) {
     return {
-      purchaseId: null,
+      status: "unknown_session",
       program: null,
     };
   }
@@ -357,7 +421,7 @@ export async function provisionDevMockPurchaseAndProgram(
       });
 
       if (!user) {
-        return { purchaseId: null, program: null };
+        return { status: "unknown_session", program: null };
       }
 
       const purchase = await tx.purchase.upsert({
@@ -388,8 +452,9 @@ export async function provisionDevMockPurchaseAndProgram(
       });
 
       return {
-        purchaseId: purchase.id,
+        status: program ? "ready" : "missing_profile",
         program,
+        supportReference: "dev_mock",
       };
     },
     { timeout: 30000 }

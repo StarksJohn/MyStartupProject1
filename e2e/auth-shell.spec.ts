@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, ProgramStatus, PurchaseStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -7,8 +7,10 @@ function createDevUserId(email: string) {
   return `dev-${Buffer.from(email).toString("base64url").slice(0, 24)}`;
 }
 
-async function signInForOnboarding(page: import("@playwright/test").Page) {
-  const email = `dev-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+async function signInForOnboarding(
+  page: import("@playwright/test").Page,
+  email = `dev-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`
+) {
   const userId = createDevUserId(email);
 
   await page.goto("/sign-in?callbackUrl=%2Fonboarding");
@@ -23,6 +25,109 @@ async function signInForOnboarding(page: import("@playwright/test").Page) {
   await expect(page).toHaveURL(/\/onboarding$/);
 
   return { email, userId };
+}
+
+async function signInAsExistingDevUser(
+  page: import("@playwright/test").Page,
+  email: string
+) {
+  const csrfResponse = await page.request.get("/api/auth/csrf");
+  expect(csrfResponse.status()).toBe(200);
+  const { csrfToken } = (await csrfResponse.json()) as { csrfToken: string };
+
+  const loginResponse = await page.request.post("/api/auth/callback/dev-login", {
+    form: {
+      csrfToken,
+      email,
+      callbackUrl: "/onboarding",
+      json: "true",
+    },
+  });
+  expect(loginResponse.status()).toBe(200);
+
+  await page.goto("/onboarding");
+  await expect(page).toHaveURL(/\/onboarding$/);
+}
+
+function shortCheckoutReference(checkoutSessionId: string) {
+  return `${checkoutSessionId.slice(0, 6)}...${checkoutSessionId.slice(-6)}`;
+}
+
+function createUniqueCheckoutEmail(status: PurchaseStatus) {
+  return `dev-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}-checkout-${status.toLowerCase()}@example.com`;
+}
+
+async function seedCheckoutReturnState({
+  email,
+  purchaseStatus,
+  withProgram = false,
+}: {
+  email: string;
+  purchaseStatus: PurchaseStatus;
+  withProgram?: boolean;
+}) {
+  const userId = createDevUserId(email);
+  const checkoutSessionId = `cs_auth_shell_${purchaseStatus.toLowerCase()}_${Date.now()}_${Math.random()
+    .toString(36)
+    .slice(2)}`;
+
+  await prisma.user.create({
+    data: { id: userId, email },
+  });
+
+  const recoveryProfile = await prisma.recoveryProfile.create({
+    data: {
+      userId,
+      bodyPart: "finger",
+      subType: "proximal phalanx stiffness",
+      castRemovedAt: new Date(),
+      hasHardware: "no",
+      referredToPt: "not_sure",
+      painLevel: 3,
+      dominantHandAffected: false,
+      jobType: "desk",
+      riskFlagsJson: {},
+    },
+  });
+
+  const purchase = await prisma.purchase.create({
+    data: {
+      userId,
+      stripeCheckoutSessionId: checkoutSessionId,
+      stripePaymentIntentId: `pi_auth_shell_${Date.now()}_${Math.random()
+        .toString(36)
+        .slice(2)}`,
+      amount: 1499,
+      currency: "usd",
+      status: purchaseStatus,
+      paidAt:
+        purchaseStatus === PurchaseStatus.PAID ||
+        purchaseStatus === PurchaseStatus.REFUNDED
+          ? new Date()
+          : undefined,
+      refundedAt:
+        purchaseStatus === PurchaseStatus.REFUNDED ? new Date() : undefined,
+    },
+  });
+
+  if (withProgram) {
+    await prisma.program.create({
+      data: {
+        userId,
+        recoveryProfileId: recoveryProfile.id,
+        purchaseId: purchase.id,
+        templateVersion: "finger-v1",
+        startDate: new Date(),
+        endDate: new Date(),
+        currentDay: 1,
+        status: ProgramStatus.ACTIVE,
+      },
+    });
+  }
+
+  return { userId, checkoutSessionId };
 }
 
 async function checkEligibilityOption(
@@ -371,6 +476,8 @@ test.describe("auth identity shell", () => {
   test("checkout CTA uses dev fallback and reaches success page", async ({
     page,
   }) => {
+    test.setTimeout(150_000);
+
     const { userId } = await signInForOnboarding(page);
     await waitForEligibilityGate(page);
     await continueToRecoveryProfile(page);
@@ -440,5 +547,56 @@ test.describe("auth identity shell", () => {
     await expect(
       page.getByRole("link", { name: "Read the refund policy" })
     ).toBeVisible();
+  });
+
+  test("checkout success explains pending, failed, and refunded states safely", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+
+    test.skip(
+      test.info().project.name !== "Desktop Chrome",
+      "Checkout state copy coverage only runs once."
+    );
+
+    const cases = [
+      {
+        status: PurchaseStatus.PENDING,
+        heading: "Your payment is still confirming",
+        cta: "Refresh payment status",
+      },
+      {
+        status: PurchaseStatus.FAILED,
+        heading: "Your payment did not complete",
+        cta: "Retry checkout",
+      },
+      {
+        status: PurchaseStatus.REFUNDED,
+        heading: "This purchase was refunded",
+        cta: "Read refund policy",
+        withProgram: true,
+      },
+    ] as const;
+
+    for (const item of cases) {
+      const email = createUniqueCheckoutEmail(item.status);
+      const { checkoutSessionId } = await seedCheckoutReturnState({
+        email,
+        purchaseStatus: item.status,
+        withProgram: "withProgram" in item ? item.withProgram : false,
+      });
+      await signInAsExistingDevUser(page, email);
+
+      await page.goto(
+        `/onboarding/checkout/success?session_id=${checkoutSessionId}`
+      );
+
+      await expect(page.getByRole("heading", { name: item.heading })).toBeVisible();
+      await expect(page.getByRole("link", { name: item.cta })).toBeVisible();
+      await expect(page.getByText(shortCheckoutReference(checkoutSessionId))).toBeVisible();
+      await expect(page.getByText(checkoutSessionId, { exact: true })).toHaveCount(0);
+      await expect(page.getByText("Your 14-day plan is ready")).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Open Day 1" })).toHaveCount(0);
+    }
   });
 });

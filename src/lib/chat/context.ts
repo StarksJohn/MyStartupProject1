@@ -113,6 +113,20 @@ export async function buildChatContext(
     };
   }
 
+  if (
+    state.status === "payment_pending" ||
+    state.status === "payment_failed" ||
+    state.status === "purchase_refunded"
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      error: "chat_billing_blocked",
+      message:
+        "Chat is available after billing is resolved and your paid recovery program is active.",
+    };
+  }
+
   if (state.status === "missing_day_content") {
     return {
       ok: false,

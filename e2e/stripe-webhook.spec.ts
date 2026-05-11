@@ -7,6 +7,7 @@ import {
   validateProgramContentReferences,
   type ProgramContentBundle,
 } from "../src/lib/program/program-content";
+import { recordPendingPurchaseForCheckoutSession } from "../src/lib/billing/purchase-service";
 
 const prisma = new PrismaClient();
 const stripe = new Stripe("sk_test_playwright");
@@ -395,20 +396,48 @@ test.describe("stripe webhook unlock", () => {
     expect(purchase?.program).toBeNull();
   });
 
-  test("failed and refunded events update matched purchases without provisioning", async ({
+  test("checkout creation can persist a pending purchase without unsafe unlock", async () => {
+    const userId = await createWebhookUser({ withProfile: true });
+    const checkoutSessionId = uniqueId("cs_pending_creation");
+    const paymentIntentId = uniqueId("pi_pending_creation");
+
+    await recordPendingPurchaseForCheckoutSession({
+      userId,
+      checkoutSessionId,
+      stripePaymentIntentId: paymentIntentId,
+      stripeCustomerId: uniqueId("cus_pending_creation"),
+      amount: 1499,
+      currency: "USD",
+    });
+
+    const purchase = await prisma.purchase.findUniqueOrThrow({
+      where: { stripeCheckoutSessionId: checkoutSessionId },
+      include: { program: true },
+    });
+
+    expect(purchase).toMatchObject({
+      userId,
+      stripePaymentIntentId: paymentIntentId,
+      amount: 1499,
+      currency: "usd",
+      status: PurchaseStatus.PENDING,
+    });
+    expect(purchase.program).toBeNull();
+  });
+
+  test("failed and expired checkout events update only pending purchases", async ({
     request,
   }) => {
     const userId = await createWebhookUser({ withProfile: true });
-    const paymentIntentId = uniqueId("pi_status_updates");
-    const purchase = await prisma.purchase.create({
+    const paymentIntentId = uniqueId("pi_pending_failure");
+    const pendingPurchase = await prisma.purchase.create({
       data: {
         userId,
-        stripeCheckoutSessionId: uniqueId("cs_test_status_updates"),
+        stripeCheckoutSessionId: uniqueId("cs_test_pending_failure"),
         stripePaymentIntentId: paymentIntentId,
         amount: 1499,
         currency: "usd",
-        status: PurchaseStatus.PAID,
-        paidAt: new Date(),
+        status: PurchaseStatus.PENDING,
       },
     });
 
@@ -428,8 +457,89 @@ test.describe("stripe webhook unlock", () => {
     expect(failedResponse.status()).toBe(200);
 
     await expect(
-      prisma.purchase.findUniqueOrThrow({ where: { id: purchase.id } })
+      prisma.purchase.findUniqueOrThrow({ where: { id: pendingPurchase.id } })
     ).resolves.toMatchObject({ status: PurchaseStatus.FAILED });
+
+    const expiredPurchase = await prisma.purchase.create({
+      data: {
+        userId,
+        stripeCheckoutSessionId: uniqueId("cs_test_expired"),
+        amount: 1499,
+        currency: "usd",
+        status: PurchaseStatus.PENDING,
+      },
+    });
+    const expiredEventId = uniqueId("evt_checkout_expired");
+    createdEventIds.add(expiredEventId);
+    const expiredResponse = await postSignedWebhook(request, {
+      id: expiredEventId,
+      object: "event",
+      type: "checkout.session.expired",
+      data: {
+        object: {
+          id: expiredPurchase.stripeCheckoutSessionId,
+          object: "checkout.session",
+        },
+      },
+    });
+    expect(expiredResponse.status()).toBe(200);
+
+    await expect(
+      prisma.purchase.findUniqueOrThrow({ where: { id: expiredPurchase.id } })
+    ).resolves.toMatchObject({ status: PurchaseStatus.FAILED });
+  });
+
+  test("stale failure does not downgrade paid active access, while refund revokes it", async ({
+    request,
+  }) => {
+    const userId = await createWebhookUser({ withProfile: true });
+    const recoveryProfile = await prisma.recoveryProfile.findUniqueOrThrow({
+      where: { userId },
+      select: { id: true },
+    });
+    const paymentIntentId = uniqueId("pi_paid_not_downgraded");
+    const purchase = await prisma.purchase.create({
+      data: {
+        userId,
+        stripeCheckoutSessionId: uniqueId("cs_paid_not_downgraded"),
+        stripePaymentIntentId: paymentIntentId,
+        amount: 1499,
+        currency: "usd",
+        status: PurchaseStatus.PAID,
+        paidAt: new Date(),
+      },
+    });
+    const program = await prisma.program.create({
+      data: {
+        userId,
+        recoveryProfileId: recoveryProfile.id,
+        purchaseId: purchase.id,
+        templateVersion: "finger-v1",
+        startDate: new Date(),
+        endDate: new Date(),
+        currentDay: 1,
+        status: ProgramStatus.ACTIVE,
+      },
+    });
+
+    const failedEventId = uniqueId("evt_stale_payment_failed");
+    createdEventIds.add(failedEventId);
+    const failedResponse = await postSignedWebhook(request, {
+      id: failedEventId,
+      object: "event",
+      type: "payment_intent.payment_failed",
+      data: {
+        object: {
+          id: paymentIntentId,
+          object: "payment_intent",
+        },
+      },
+    });
+    expect(failedResponse.status()).toBe(200);
+
+    await expect(
+      prisma.purchase.findUniqueOrThrow({ where: { id: purchase.id } })
+    ).resolves.toMatchObject({ status: PurchaseStatus.PAID });
 
     const refundedEventId = uniqueId("evt_charge_refunded");
     createdEventIds.add(refundedEventId);
@@ -451,7 +561,10 @@ test.describe("stripe webhook unlock", () => {
       prisma.purchase.findUniqueOrThrow({ where: { id: purchase.id } })
     ).resolves.toMatchObject({ status: PurchaseStatus.REFUNDED });
     await expect(
+      prisma.program.findUniqueOrThrow({ where: { id: program.id } })
+    ).resolves.toMatchObject({ status: ProgramStatus.EXPIRED });
+    await expect(
       prisma.program.count({ where: { purchaseId: purchase.id } })
-    ).resolves.toBe(0);
+    ).resolves.toBe(1);
   });
 });

@@ -1,15 +1,29 @@
 import { NextResponse } from "next/server";
 
-import { createCheckoutSession } from "@/lib/billing/purchase-service";
+import {
+  createCheckoutSession,
+  recordPendingPurchaseForCheckoutSession,
+} from "@/lib/billing/purchase-service";
 import { getAuthSession } from "@/lib/auth/session";
 import { captureError } from "@/lib/observability/server";
 import { prisma } from "@/lib/prisma";
+import { getActiveProgramForUser } from "@/lib/program/provisioning-service";
 
 export async function POST() {
   const session = await getAuthSession();
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+
+  const activeProgram = await getActiveProgramForUser(session.user.id);
+
+  if (activeProgram) {
+    return NextResponse.json({
+      url: "/progress",
+      isDevMock: false,
+      alreadyUnlocked: true,
+    });
   }
 
   const recoveryProfile = await prisma.recoveryProfile.findUnique({
@@ -30,7 +44,21 @@ export async function POST() {
       userEmail: session.user.email,
     });
 
-    return NextResponse.json(checkoutSession);
+    if (!checkoutSession.isDevMock && checkoutSession.checkoutSessionId) {
+      await recordPendingPurchaseForCheckoutSession({
+        userId: session.user.id,
+        checkoutSessionId: checkoutSession.checkoutSessionId,
+        stripePaymentIntentId: checkoutSession.stripePaymentIntentId,
+        stripeCustomerId: checkoutSession.stripeCustomerId,
+        amount: checkoutSession.amount ?? 1499,
+        currency: checkoutSession.currency ?? "usd",
+      });
+    }
+
+    return NextResponse.json({
+      url: checkoutSession.url,
+      isDevMock: checkoutSession.isDevMock,
+    });
   } catch (error) {
     captureError(error, {
       flow: "checkout",

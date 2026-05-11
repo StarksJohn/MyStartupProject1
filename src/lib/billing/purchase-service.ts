@@ -1,4 +1,7 @@
 import Stripe from "stripe";
+import { PurchaseStatus } from "@prisma/client";
+
+import { prisma } from "@/lib/prisma";
 
 interface CreateCheckoutSessionInput {
   userId: string;
@@ -8,6 +11,11 @@ interface CreateCheckoutSessionInput {
 interface CheckoutSessionResult {
   url: string;
   isDevMock: boolean;
+  checkoutSessionId?: string;
+  stripePaymentIntentId?: string | null;
+  stripeCustomerId?: string | null;
+  amount?: number;
+  currency?: string;
 }
 
 const checkoutPriceCents = 1499;
@@ -29,6 +37,23 @@ function getStripeClient() {
 
   stripeClient ??= new Stripe(secretKey);
   return stripeClient;
+}
+
+function normalizeStripeId(value: unknown) {
+  if (typeof value === "string") {
+    return value.trim() || null;
+  }
+
+  if (
+    value &&
+    typeof value === "object" &&
+    "id" in value &&
+    typeof value.id === "string"
+  ) {
+    return value.id.trim() || null;
+  }
+
+  return null;
 }
 
 export async function createCheckoutSession({
@@ -72,5 +97,47 @@ export async function createCheckoutSession({
   return {
     url: session.url,
     isDevMock: false,
+    checkoutSessionId: session.id,
+    stripePaymentIntentId: normalizeStripeId(session.payment_intent),
+    stripeCustomerId: normalizeStripeId(session.customer),
+    amount: session.amount_total ?? checkoutPriceCents,
+    currency: session.currency?.toLowerCase() || "usd",
   };
+}
+
+export async function recordPendingPurchaseForCheckoutSession({
+  userId,
+  checkoutSessionId,
+  stripePaymentIntentId,
+  stripeCustomerId,
+  amount,
+  currency,
+}: {
+  userId: string;
+  checkoutSessionId: string;
+  stripePaymentIntentId?: string | null;
+  stripeCustomerId?: string | null;
+  amount: number;
+  currency: string;
+}) {
+  await prisma.purchase.upsert({
+    where: {
+      stripeCheckoutSessionId: checkoutSessionId,
+    },
+    create: {
+      userId,
+      stripeCheckoutSessionId: checkoutSessionId,
+      stripePaymentIntentId: stripePaymentIntentId ?? undefined,
+      stripeCustomerId: stripeCustomerId ?? undefined,
+      amount,
+      currency: currency.toLowerCase(),
+      status: PurchaseStatus.PENDING,
+    },
+    update: {
+      stripePaymentIntentId: stripePaymentIntentId ?? undefined,
+      stripeCustomerId: stripeCustomerId ?? undefined,
+      amount,
+      currency: currency.toLowerCase(),
+    },
+  });
 }

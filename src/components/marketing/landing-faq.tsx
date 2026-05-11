@@ -30,7 +30,7 @@ const FAQ_ITEMS: readonly FaqItem[] = [
   {
     question: "What if it is not right for me?",
     answer:
-      "If the product is not a fit, review the refund policy or contact support. The full refund process is finalized alongside payment work.",
+      "If billing is pending, failed, or the product is not a fit, review the refund policy for the safe support path. The MVP uses a one-time purchase and refunds revoke paid access.",
     refundHref: "/legal/refund",
   },
 ] as const;

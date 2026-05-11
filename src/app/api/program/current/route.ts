@@ -5,6 +5,12 @@ import { resolveCurrentProgramForUser } from "@/lib/program/current-program-serv
 
 export const dynamic = "force-dynamic";
 
+const billingBlockedStatuses = new Set([
+  "payment_pending",
+  "payment_failed",
+  "purchase_refunded",
+]);
+
 export async function GET() {
   const session = await getAuthSession();
 
@@ -38,6 +44,16 @@ export async function GET() {
           status: state.status,
           programId: state.programId,
           currentDay: state.currentDay,
+          redirectTo: "/progress",
+        },
+        { status: 200 }
+      );
+    }
+
+    if (billingBlockedStatuses.has(state.status)) {
+      return NextResponse.json(
+        {
+          status: state.status,
           redirectTo: "/progress",
         },
         { status: 200 }

@@ -26,6 +26,13 @@ export default async function CheckoutCancelledPage() {
           checkout attempt.
         </p>
 
+        <div className="mt-6 rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+          If a bank statement ever shows a charge after a cancelled or failed
+          checkout, do not share payment IDs in chat or screenshots. Use the
+          refund policy for the safe support path and include only the checkout
+          receipt reference if Stripe sent one.
+        </div>
+
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Button asChild>
             <Link href="/onboarding">Back to onboarding</Link>

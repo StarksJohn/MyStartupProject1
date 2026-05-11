@@ -46,6 +46,14 @@ export default async function ChatPage() {
     redirect("/onboarding");
   }
 
+  if (
+    state.status === "payment_pending" ||
+    state.status === "payment_failed" ||
+    state.status === "purchase_refunded"
+  ) {
+    redirect("/progress");
+  }
+
   if (state.status === "missing_day_content") {
     redirect("/progress");
   }

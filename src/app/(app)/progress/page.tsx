@@ -18,6 +18,42 @@ type ProgressFallbackState = Exclude<
 >;
 
 function getFallbackContent(state: ProgressFallbackState) {
+  if (state.status === "payment_pending") {
+    return {
+      title: "Your payment is still confirming",
+      description:
+        "Stripe has not confirmed the payment yet, so we are not opening Day 1 until the paid program is ready. Wait a moment, refresh progress, or retry checkout from onboarding if it stays pending.",
+      primaryHref: "/progress",
+      primaryLabel: "Refresh progress",
+      secondaryHref: "/onboarding",
+      secondaryLabel: "Back to onboarding",
+    };
+  }
+
+  if (state.status === "payment_failed") {
+    return {
+      title: "Your payment did not complete",
+      description:
+        "The checkout attempt failed or expired. No recovery plan has been unlocked from that payment state, and you can safely retry when you are ready.",
+      primaryHref: "/onboarding",
+      primaryLabel: "Retry checkout",
+      secondaryHref: "/legal/refund",
+      secondaryLabel: "Payment help",
+    };
+  }
+
+  if (state.status === "purchase_refunded") {
+    return {
+      title: "Access was revoked after a refund",
+      description:
+        "This account has a refunded purchase, so paid recovery access is no longer active. You can review the refund policy or return to onboarding if you want to start a new checkout.",
+      primaryHref: "/legal/refund",
+      primaryLabel: "Read refund policy",
+      secondaryHref: "/onboarding",
+      secondaryLabel: "Back to onboarding",
+    };
+  }
+
   if (state.status === "no_purchase") {
     return {
       title: "We could not find an active 14-day plan",
@@ -25,6 +61,8 @@ function getFallbackContent(state: ProgressFallbackState) {
         "It looks like you have not unlocked the 14-day companion yet. Start with the eligibility quiz to see if it fits.",
       primaryHref: "/onboarding",
       primaryLabel: "Back to onboarding",
+      secondaryHref: "/",
+      secondaryLabel: "Back to landing page",
     };
   }
 
@@ -35,6 +73,8 @@ function getFallbackContent(state: ProgressFallbackState) {
         "Your purchase is on file, but we need to finish your recovery profile before generating the plan.",
       primaryHref: "/onboarding",
       primaryLabel: "Back to onboarding",
+      secondaryHref: "/legal/refund",
+      secondaryLabel: "Payment help",
     };
   }
 
@@ -44,6 +84,8 @@ function getFallbackContent(state: ProgressFallbackState) {
       "We found your 14-day plan, but today's content is missing or incomplete. We are not showing partial recovery guidance. Please retry in a moment and contact support if this stays visible.",
     primaryHref: `/day/${state.currentDay}`,
     primaryLabel: "Retry today's plan",
+    secondaryHref: "/legal/refund",
+    secondaryLabel: "Support options",
   };
 }
 
@@ -87,7 +129,7 @@ export default async function ProgressEntryPage() {
             <Link href={fallback.primaryHref}>{fallback.primaryLabel}</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/">Back to landing page</Link>
+            <Link href={fallback.secondaryHref}>{fallback.secondaryLabel}</Link>
           </Button>
         </div>
       </section>
