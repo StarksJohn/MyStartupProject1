@@ -1,6 +1,6 @@
 ﻿# Story 7.2: Monitoring and Error Observability
 
-Status: code-review
+Status: done
 
 <!-- Created by bmad-create-story after Story 7.1 product analytics was implemented, lightly reviewed, and marked done. -->
 
@@ -115,6 +115,11 @@ so that broken core flows can be fixed before they damage trust.
   - [x] 8.5 Re-run `pnpm typecheck`.
   - [x] 8.6 Re-run `pnpm lint`.
   - [x] 8.7 Run focused E2E/API coverage that proves user-facing responses remain unchanged where practical.
+
+### Review Findings
+
+- [x] [Review][Patch] Sentry capture path should not rely on asynchronous dynamic import and should preserve safe stack context [src/lib/observability/server.ts:168] — fixed by using the Sentry SDK directly inside the shared helpers and preserving sanitized error stacks.
+- [x] [Review][Patch] Completion report observability should not emit warning events for normal `not_completed` access [src/app/api/program/report/route.ts:44] — fixed by only capturing `missing_content` report fallback as a monitoring event.
 
 ## Dev Notes
 
@@ -265,6 +270,8 @@ GPT-5.5
 - Dev implementation prerequisites loaded from `C:\Users\Stark8964911\.cursor\skills\bmad-dev-story\SKILL.md`, `workflow.md`, and `checklist.md`.
 - Story status moved `ready-for-dev` -> `in-progress` before implementation, then `code-review` after implementation and validation.
 - `pnpm exec playwright test --project="Desktop Chrome" --workers=1 --reporter=line` reached 73 passed, 1 failed, 2 did not run; the remaining failure was a Prisma 30s transaction timeout in `paid purchase with inactive program restores active program`, and the same test passed when rerun in isolation.
+- Light `bmad-code-review` prerequisites loaded from `C:\Users\Stark8964911\.cursor\skills\bmad-code-review\SKILL.md`, `workflow.md`, `checklist.md`, and steps `step-01-gather-context.md` through `step-04-present.md`.
+- Repository BMAD config gap fixed with `_bmad/bmm/config.yaml`; `bmad-code-review/checklist.md` was added to the local Cursor skill directory before continuing review.
 
 ### Completion Notes List
 
@@ -274,9 +281,11 @@ GPT-5.5
 - Updated Sentry environment readiness comments and production verification policy while keeping local/CI no-DSN runs allowed.
 - Added focused observability E2E coverage for sanitizer behavior, no-DSN capture safety, and static integration of core caught-failure paths.
 - Stabilized two existing program-entry E2E assertions uncovered during full regression: the chat quota assertion now waits for stream completion, and the Day page chat CTA assertion verifies the link target plus chat reachability instead of depending on a long-run click transition.
+- Code review fixed 2 patch findings: capture helpers now use direct Sentry SDK calls and preserve sanitized stack context; completion report warning capture is limited to missing content rather than normal not-completed access.
 
 ### File List
 
+- `_bmad/bmm/config.yaml`
 - `.env.example`
 - `e2e/observability.spec.ts`
 - `e2e/program-entry.spec.ts`
@@ -305,3 +314,4 @@ GPT-5.5
 
 - 2026-05-11: Created Story 7.2 with Sentry/Next.js observability scope, caught-failure capture targets, privacy-safe metadata rules, error-boundary guidance, production env verification guidance, and focused testing requirements; story marked ready-for-dev.
 - 2026-05-11: Implemented Story 7.2 observability helper, safe capture integrations, App Router error boundaries, environment production gates, and focused tests; story marked code-review.
+- 2026-05-12: Completed light bmad-code-review, fixed 2 patch findings, verified typecheck/lint/focused E2E, and marked story done.

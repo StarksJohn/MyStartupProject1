@@ -42,13 +42,15 @@ export async function GET() {
     const report = await buildCompletionReportForUser(session.user.id);
 
     if (report.status !== "ready") {
-      captureMessage("completion_report_unavailable", {
-        flow: "completion_report",
-        operation: "resolve_report_content",
-        route: "/api/program/report",
-        status: report.status,
-        severity: "warning",
-      });
+      if (report.status === "missing_content") {
+        captureMessage("completion_report_unavailable", {
+          flow: "completion_report",
+          operation: "resolve_report_content",
+          route: "/api/program/report",
+          status: report.status,
+          severity: "warning",
+        });
+      }
       console.error("Completion report unavailable", {
         userId: session.user.id,
         programId: report.programId,

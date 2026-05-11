@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/nextjs";
+
 export type ObservabilityFlow =
   | "checkout"
   | "billing_webhook"
@@ -34,7 +36,6 @@ export interface ObservabilityCapture {
 
 type UnsafeObservabilityContext = ObservabilityContext & Record<string, unknown>;
 type ObservabilityTestSink = (capture: ObservabilityCapture) => void;
-type SentryModule = typeof import("@sentry/nextjs");
 
 const safeKeys = new Set<keyof ObservabilityContext>([
   "flow",
@@ -92,6 +93,9 @@ function normalizeError(error: unknown) {
 
   const sanitizedError = new Error(sanitizeErrorMessage(error.message));
   sanitizedError.name = error.name;
+  if (error.stack) {
+    sanitizedError.stack = sanitizeErrorMessage(error.stack);
+  }
 
   return sanitizedError;
 }
@@ -165,25 +169,12 @@ function buildSentryScope(context: ObservabilityContext) {
   };
 }
 
-function loadSentry() {
-  const dynamicImport = new Function(
-    "specifier",
-    "return import(specifier)"
-  ) as (specifier: string) => Promise<SentryModule>;
-
-  return dynamicImport("@sentry/nextjs");
-}
-
 function sendErrorToSentry(error: Error, context: ObservabilityContext) {
-  void loadSentry().then((Sentry) => {
-    Sentry.captureException(error, buildSentryScope(context));
-  });
+  Sentry.captureException(error, buildSentryScope(context));
 }
 
 function sendMessageToSentry(message: string, context: ObservabilityContext) {
-  void loadSentry().then((Sentry) => {
-    Sentry.captureMessage(message, buildSentryScope(context));
-  });
+  Sentry.captureMessage(message, buildSentryScope(context));
 }
 
 export function captureError(error: unknown, context: UnsafeObservabilityContext) {

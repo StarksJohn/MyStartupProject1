@@ -1,0 +1,18 @@
+project_name: "Fracture Recovery AI Companion"
+user_name: "Stark8964911"
+communication_language: "Simplified Chinese"
+document_output_language: "Simplified Chinese"
+user_skill_level: "advanced"
+
+# Artifact roots are relative to the project root.
+planning_artifacts: "."
+implementation_artifacts: "stories"
+output_folder: "."
+
+# Repository-specific recovery anchors used by Codex/Cursor BMAD workflows.
+project_master_doc: "项目主档案.md"
+sprint_status: "stories/sprint-status.yaml"
+epics_file: "epics.md"
+product_brief_file: "产品Brief.md"
+architecture_file: "技术架构详细设计.md"
+ux_file: "UX设计规格说明.md"

@@ -64,12 +64,17 @@ test.describe("observability capture helper", () => {
   test("no-DSN mode does not throw and the test sink receives sanitized captures", () => {
     const captures: ObservabilityCapture[] = [];
     setObservabilityTestSink((capture) => captures.push(capture));
+    const checkoutError = new Error(
+      "Checkout failed for patient@example.com via https://checkout.stripe.com/c/pay/cs_test_secret with sk_test_secret"
+    );
+    checkoutError.stack = [
+      `Error: ${checkoutError.message}`,
+      "    at createCheckoutSession (src/lib/billing/purchase-service.ts:42:11)",
+    ].join("\n");
 
     expect(() =>
       captureError(
-        new Error(
-          "Checkout failed for patient@example.com via https://checkout.stripe.com/c/pay/cs_test_secret with sk_test_secret"
-        ),
+        checkoutError,
         {
           flow: "checkout",
           operation: "create_checkout_session",
@@ -94,6 +99,7 @@ test.describe("observability capture helper", () => {
       kind: "error",
       error: expect.objectContaining({
         message: expect.not.stringContaining("patient@example.com"),
+        stack: expect.stringContaining("purchase-service.ts"),
       }),
       context: {
         flow: "checkout",
@@ -112,6 +118,9 @@ test.describe("observability capture helper", () => {
         severity: "warning",
       },
     });
+    expect(captures[0].error?.stack).not.toContain("patient@example.com");
+    expect(captures[0].error?.stack).not.toContain("checkout.stripe.com");
+    expect(captures[0].error?.stack).not.toContain("sk_test_secret");
     expect(JSON.stringify(captures)).not.toContain("private@example.com");
     expect(JSON.stringify(captures)).not.toContain("checkout.stripe.com");
     expect(JSON.stringify(captures)).not.toContain("sk_test_secret");
