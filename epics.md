@@ -4,14 +4,16 @@ stepsCompleted:
   - epics-designed
   - stories-created
 inputDocuments:
-  - D:\work\MyStartupProject1\产品Brief.md
-  - D:\work\MyStartupProject1\路线图与MVP.md
-  - D:\work\MyStartupProject1\技术架构详细设计.md
-  - D:\work\MyStartupProject1\UX设计规格说明.md
-  - D:\work\MyStartupProject1\项目主档案.md
+  - "<项目根目录>/产品Brief.md"
+  - "<项目根目录>/路线图与MVP.md"
+  - "<项目根目录>/技术架构详细设计.md"
+  - "<项目根目录>/UX设计规格说明.md"
+  - "<项目根目录>/项目主档案.md"
 ---
 
 # Fracture Recovery AI Companion - Epic Breakdown
+
+> `<项目根目录>`：**Windows** `D:\work\MyStartupProject1`；**macOS** `/Users/stark/Desktop/work/MyStartupProject1`
 
 ## Overview
 
@@ -650,4 +652,3 @@ So that the first public release does not break the core value flow.
 **When** deployment verification runs  
 **Then** missing or malformed production-critical variables are surfaced before release  
 **And** the README / runbook clearly points operators to the relevant setup steps.
-

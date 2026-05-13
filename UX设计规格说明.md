@@ -2,13 +2,15 @@
 stepsCompleted:
   - ux-page-spec-ready
 inputDocuments:
-  - D:\work\MyStartupProject1\产品Brief.md
-  - D:\work\MyStartupProject1\路线图与MVP.md
-  - D:\work\MyStartupProject1\技术架构详细设计.md
+  - "<项目根目录>/产品Brief.md"
+  - "<项目根目录>/路线图与MVP.md"
+  - "<项目根目录>/技术架构详细设计.md"
 status: ready_for_story_split
 ---
 
 # UX 设计规格说明：Fracture Recovery AI Companion
+
+> `<项目根目录>`：**Windows** `D:\work\MyStartupProject1`；**macOS** `/Users/stark/Desktop/work/MyStartupProject1`
 
 > 版本：v1.0
 > 日期：2026-04-22
@@ -842,4 +844,3 @@ Danger escalation / quota exceeded / 输入区限制
 - 单组件交互微状态
 
 而不应再改页面一级结构。
-

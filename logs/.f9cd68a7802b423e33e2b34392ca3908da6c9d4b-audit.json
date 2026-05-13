@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/stark/Desktop/work/MyStartupProject1/logs/.f9cd68a7802b423e33e2b34392ca3908da6c9d4b-audit.json",
+    "files": [
+        {
+            "date": 1778658417172,
+            "name": "/Users/stark/Desktop/work/MyStartupProject1/logs/mcp-puppeteer-2026-05-13.log",
+            "hash": "42ab7d3031539b57d4576d000c15ddc85c143a8dfe5c37dfbe5e7de4abfbf4da"
+        }
+    ],
+    "hashType": "sha256"
+}

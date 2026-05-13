@@ -189,7 +189,7 @@ so that I trust it enough to keep reading instead of bouncing.
 
 ### Project Structure Notes
 
-- 本项目仓库目前在 `D:\work\MyStartupProject1\` 仅有文档（`README.md`、`epics.md`、`技术架构详细设计.md`、`UX设计规格说明.md`、`产品Brief.md`、`路线图与MVP.md`、`项目主档案.md`），无任何代码脚手架。本 story 负责初始化完整工程目录。
+- 本项目仓库当前根目录为 **Windows** `D:\work\MyStartupProject1\`、**macOS** `/Users/stark/Desktop/work/MyStartupProject1/`；该目录当时仅有文档（`README.md`、`epics.md`、`技术架构详细设计.md`、`UX设计规格说明.md`、`产品Brief.md`、`路线图与MVP.md`、`项目主档案.md`），无任何代码脚手架。本 story 负责初始化完整工程目录。
 - 本 story 交付后，目录应具备：`src/app/(marketing)/`、`src/app/(marketing)/legal/*`、`src/components/providers/`、`src/components/ui/`、`src/components/marketing/`、`src/lib/`、`scripts/`、`e2e/`、`content/`（空目录占位）、`prisma/`（空目录占位）。
 - `(app)`、`api/`、业务模块（`lib/auth`、`lib/billing`、`lib/program`、`lib/chat`、`lib/rag`、`lib/safety`）由后续 story 建立，本 story 不预先创建空壳，避免幻像结构。
 - 与 `技术架构详细设计.md` §6 目录图的偏差：本 story 暂缓创建 `lib/env/` 子目录，直接用单文件 `scripts/verify-env.ts`；若 Epic 7 的 verify-env 扩展需要子模块，再拆分。

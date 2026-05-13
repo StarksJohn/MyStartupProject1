@@ -1,7 +1,7 @@
 # 产品 Brief：Fracture Recovery AI Companion（首版聚焦手指 / 掌骨）
 
 > 版本 v1.2 · 2026-04-19 · 基于 `立项决策 Conditional Go` + 5 项关键决策 + 定价微调至 $14.99 + 技术栈升级 Next.js 16 并沿用 lease-guard 基础栈
-> 主文档同步：`D:\work\MyStartupProject1\项目主档案.md`
+> 主文档同步：`<项目根目录>/项目主档案.md`（项目根目录：**Windows** `D:\work\MyStartupProject1`；**macOS** `/Users/stark/Desktop/work/MyStartupProject1`）
 
 ---
 

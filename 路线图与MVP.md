@@ -3,7 +3,7 @@
 > 版本 v1.1 · 2026-04-19 · 基于 `产品Brief.md v1.2`（基础栈沿用 `D:\work\MyStartupProject\lease-guard`）
 > 来源：`bmad-agent-pm` 阶段输出
 > 时间盒：3 月（13 周，W1-W13）· 20 小时 / 周 · 总预算 ≈ 260 小时
-> 主文档同步：`D:\work\MyStartupProject1\项目主档案.md`
+> 主文档同步：`<项目根目录>/项目主档案.md`（项目根目录：**Windows** `D:\work\MyStartupProject1`；**macOS** `/Users/stark/Desktop/work/MyStartupProject1`）
 
 ---
 
@@ -256,7 +256,7 @@
 **主路径**：
 - [ ] 3 月 PMF 数据盘点：付费用户数 / 累计营收 / 14 天完成率 / referral 数 / 退款率 → 3h
 - [ ] 退款用户与差评用户专项访谈 → 3h
-- [ ] 生成 3 月 PMF 复盘文档（放 `D:\work\MyStartupProject1\3月PMF复盘.md`）→ 4h
+- [ ] 生成 3 月 PMF 复盘文档（放 `<项目根目录>/3月PMF复盘.md`）→ 4h
 - [ ] **Gate G6 判定会议（自己与自己）**：基于数据做 PMF 决策 → 2h
 - [ ] 根据判定结果做下一阶段规划 → 6h
 - [ ] 缓冲 2h 应对上面延期
