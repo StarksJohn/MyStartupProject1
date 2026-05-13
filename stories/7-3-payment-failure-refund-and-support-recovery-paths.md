@@ -1,6 +1,6 @@
 # Story 7.3: Payment Failure, Refund, and Support Recovery Paths
 
-Status: code-review
+Status: done
 
 <!-- Created by bmad-create-story after Story 7.2 monitoring/error observability was implemented, lightly reviewed, and marked done. -->
 
@@ -112,6 +112,10 @@ so that users are not left in ambiguous account states.
   - [x] 7.5 Run `pnpm typecheck`.
   - [x] 7.6 Run `pnpm lint`.
   - [x] 7.7 Run focused E2E for billing recovery and webhook behavior with Desktop Chrome only unless mobile coverage is explicitly low-cost.
+
+### Review Findings
+
+- [x] [Review][Patch] Preserve refunded purchases when late checkout completion arrives [`src/lib/billing/webhook-service.ts:92`] — `checkout.session.completed` previously upserted the purchase back to `PAID` and could reactivate the program even after `charge.refunded` had marked the purchase `REFUNDED` and the program `EXPIRED`. Fixed by short-circuiting completed checkout handling for already-refunded purchases and keeping any associated program expired. Regression coverage added in `e2e/stripe-webhook.spec.ts`.
 
 ## Dev Notes
 
@@ -254,9 +258,9 @@ GPT-5 Codex
 ### Debug Log References
 
 - Created after `/MyStartupProject1` restored state from `项目主档案.md` and `stories/sprint-status.yaml`.
-- MyStartupProject1 prerequisites loaded from `C:\Users\Stark8964911\.codex\skills\MyStartupProject1\SKILL.md`.
-- bmad-create-story prerequisites loaded from `C:\Users\Stark8964911\.cursor\skills\bmad-create-story\SKILL.md`, `workflow.md`, `discover-inputs.md`, `checklist.md`, and `template.md`.
-- bmad-dev-story prerequisites loaded from `C:\Users\Stark8964911\.cursor\skills\bmad-dev-story\SKILL.md`, `workflow.md`, and `checklist.md`.
+- MyStartupProject1 prerequisites loaded from the Codex project skill: **Windows** `%USERPROFILE%\.codex\skills\MyStartupProject1\SKILL.md`; **macOS/Linux** `~/.codex/skills/MyStartupProject1/SKILL.md`.
+- bmad-create-story prerequisites loaded from the BMAD skill: **Windows** `%USERPROFILE%\.cursor\skills\bmad-create-story\SKILL.md`; **macOS/Linux** `~/.cursor/skills/bmad-create-story/SKILL.md`, plus `workflow.md`, `discover-inputs.md`, `checklist.md`, and `template.md`.
+- bmad-dev-story prerequisites loaded from the BMAD skill: **Windows** `%USERPROFILE%\.cursor\skills\bmad-dev-story\SKILL.md`; **macOS/Linux** `~/.cursor/skills/bmad-dev-story/SKILL.md`, plus `workflow.md` and `checklist.md`.
 - Auto-discovered first backlog story from `stories/sprint-status.yaml`: `7-3-payment-failure-refund-and-support-recovery-paths`.
 - Discovery loaded `epics.md`, `产品Brief.md`, `技术架构详细设计.md`, `UX设计规格说明.md`, Story 7.1, Story 7.2, billing/program/auth routes and services, existing E2E specs, and deferred work notes.
 - Latest Stripe docs were checked through Context7 because this story depends on current Checkout/webhook/refund event semantics.
@@ -305,3 +309,4 @@ GPT-5 Codex
 
 - 2026-05-12: Created Story 7.3 with explicit billing state scope, pending purchase persistence guidance, Stripe failure/refund transition requirements, support/refund UX guidance, privacy guardrails, and focused regression requirements; story marked ready-for-dev.
 - 2026-05-12: Implemented Story 7.3 billing failure/refund recovery paths, added focused webhook/checkout/protected-route regression coverage, and moved story to code-review.
+- 2026-05-13: Completed lightweight bmad-code-review; fixed late `checkout.session.completed` after refund so refunded access cannot be reactivated. Verified `pnpm typecheck` and `pnpm lint`; focused Playwright rerun was blocked by local Node 18.20.8 because Next.js 16.1.1 requires Node >=20.9.0 for the dev server.

@@ -91,6 +91,44 @@ async function handleCheckoutCompleted(
 
   return prisma.$transaction(
     async (tx) => {
+      const existingPurchase = await tx.purchase.findUnique({
+        where: {
+          stripeCheckoutSessionId: session.id,
+        },
+        select: {
+          id: true,
+          status: true,
+          program: {
+            select: {
+              id: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      if (existingPurchase?.status === PurchaseStatus.REFUNDED) {
+        if (
+          existingPurchase.program &&
+          existingPurchase.program.status !== ProgramStatus.EXPIRED
+        ) {
+          await tx.program.update({
+            where: {
+              id: existingPurchase.program.id,
+            },
+            data: {
+              status: ProgramStatus.EXPIRED,
+            },
+          });
+        }
+
+        return {
+          status: "ignored",
+          purchaseId: existingPurchase.id,
+          programId: existingPurchase.program?.id ?? null,
+        };
+      }
+
       const purchase = await tx.purchase.upsert({
         where: {
           stripeCheckoutSessionId: session.id,

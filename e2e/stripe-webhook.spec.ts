@@ -566,5 +566,24 @@ test.describe("stripe webhook unlock", () => {
     await expect(
       prisma.program.count({ where: { purchaseId: purchase.id } })
     ).resolves.toBe(1);
+
+    const lateCompletedEvent = checkoutCompletedEvent({
+      eventId: uniqueId("evt_late_completed_after_refund"),
+      checkoutSessionId: purchase.stripeCheckoutSessionId,
+      userId,
+      paymentIntentId,
+    });
+    const lateCompletedResponse = await postSignedWebhook(
+      request,
+      lateCompletedEvent
+    );
+    expect(lateCompletedResponse.status()).toBe(200);
+
+    await expect(
+      prisma.purchase.findUniqueOrThrow({ where: { id: purchase.id } })
+    ).resolves.toMatchObject({ status: PurchaseStatus.REFUNDED });
+    await expect(
+      prisma.program.findUniqueOrThrow({ where: { id: program.id } })
+    ).resolves.toMatchObject({ status: ProgramStatus.EXPIRED });
   });
 });
