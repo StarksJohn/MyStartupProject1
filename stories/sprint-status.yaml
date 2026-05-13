@@ -63,4 +63,4 @@ development_status:
   7-1-product-analytics-and-funnel-events: done
   7-2-monitoring-and-error-observability: done
   7-3-payment-failure-refund-and-support-recovery-paths: done
-  7-4-launch-readiness-qa-and-regression-safety-net: ready-for-dev
+  7-4-launch-readiness-qa-and-regression-safety-net: code-review

@@ -1,6 +1,6 @@
 # Story 7.4: Launch Readiness QA and Regression Safety Net
 
-Status: ready-for-dev
+Status: code-review
 
 <!-- Created by bmad-create-story after Story 7.3 payment failure/refund/support recovery paths were implemented, lightly reviewed, and marked done. -->
 
@@ -62,22 +62,22 @@ so that the first public release does not break the core value flow.
 
 ## Tasks / Subtasks
 
-- [ ] **T1 - Inventory and formalize the launch regression gate** (AC: 1, 2, 6, 7)
-  - [ ] 1.1 Build a compact launch matrix that maps MVP flow areas to existing specs:
+- [x] **T1 - Inventory and formalize the launch regression gate** (AC: 1, 2, 6, 7)
+  - [x] 1.1 Build a compact launch matrix that maps MVP flow areas to existing specs:
     - Landing, legal, SEO trust content, mobile overflow -> `e2e/marketing-shell.spec.ts`
     - Onboarding, profile, dev checkout fallback, checkout success/cancelled states -> `e2e/auth-shell.spec.ts`
     - Stripe webhook unlock, idempotency, pending/failure/refund transitions -> `e2e/stripe-webhook.spec.ts`
     - Paid Day, completion, report download, sharing, Chat, billing-blocked access -> `e2e/program-entry.spec.ts`
     - Analytics vocabulary/privacy -> `e2e/analytics-events.spec.ts`
     - Observability sanitization/no-DSN behavior -> `e2e/observability.spec.ts`
-  - [ ] 1.2 Decide whether the gate should be a README/runbook command sequence or a package script. Prefer a command sequence if `deploy:verify` can intentionally fail without production env.
-  - [ ] 1.3 If adding a package script, make its name explicit, such as `qa:launch`, and keep it deterministic; do not hide production env failures inside a broad command.
-  - [ ] 1.4 Do not add a second test suite that duplicates existing full flows unless the matrix reveals an uncovered launch-critical path.
+  - [x] 1.2 Decide whether the gate should be a README/runbook command sequence or a package script. Prefer a command sequence if `deploy:verify` can intentionally fail without production env.
+  - [x] 1.3 If adding a package script, make its name explicit, such as `qa:launch`, and keep it deterministic; do not hide production env failures inside a broad command.
+  - [x] 1.4 Do not add a second test suite that duplicates existing full flows unless the matrix reveals an uncovered launch-critical path.
 
-- [ ] **T2 - Add production-readiness env verification mode** (AC: 3, 4, 5, 6)
-  - [ ] 2.1 Update `scripts/verify-env.ts` so launch checks can force production requirements from a local shell, for example via `--production` or an equivalent documented flag.
-  - [ ] 2.2 Keep normal local `pnpm run deploy:verify` behavior friendly for development; local optional DSNs/Stripe keys should not become mandatory unless production mode is requested.
-  - [ ] 2.3 Ensure production mode blocks missing or malformed:
+- [x] **T2 - Add production-readiness env verification mode** (AC: 3, 4, 5, 6)
+  - [x] 2.1 Update `scripts/verify-env.ts` so launch checks can force production requirements from a local shell, for example via `--production` or an equivalent documented flag.
+  - [x] 2.2 Keep normal local `pnpm run deploy:verify` behavior friendly for development; local optional DSNs/Stripe keys should not become mandatory unless production mode is requested.
+  - [x] 2.3 Ensure production mode blocks missing or malformed:
     - `NEXT_PUBLIC_APP_URL`
     - `NEXTAUTH_URL`
     - `NEXTAUTH_SECRET`
@@ -91,18 +91,18 @@ so that the first public release does not break the core value flow.
     - `STRIPE_WEBHOOK_SECRET`
     - `GEMINI_API_KEY`
     - `GROQ_API_KEY`
-  - [ ] 2.4 Keep `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN`, `NEXT_PUBLIC_ANALYTICS_PROVIDER`, `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN` optional unless the story deliberately changes their launch policy and explains why.
-  - [ ] 2.5 Add tests or low-cost script assertions for the new production-readiness mode if practical without adding a new test framework.
+  - [x] 2.4 Keep `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN`, `NEXT_PUBLIC_ANALYTICS_PROVIDER`, `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN` optional unless the story deliberately changes their launch policy and explains why.
+  - [x] 2.5 Add tests or low-cost script assertions for the new production-readiness mode if practical without adding a new test framework.
 
-- [ ] **T3 - Surface Node/pnpm and local E2E prerequisites** (AC: 4, 5, 8)
-  - [ ] 3.1 Add an explicit Node runtime requirement for `next@16.1.1`: Node `>=20.9.0`.
-  - [ ] 3.2 Prefer documenting the requirement in README and, if appropriate, adding `package.json` `engines` to prevent repeated local confusion.
-  - [ ] 3.3 Keep `packageManager: "pnpm@8.15.0"` unchanged unless there is a concrete reason to upgrade.
-  - [ ] 3.4 Mention the current Playwright config behavior: one worker, Desktop Chrome + Mobile Chrome projects, `next dev --webpack`, and `PLAYWRIGHT_TEST_BASE_URL` reuse when an external server is already running.
+- [x] **T3 - Surface Node/pnpm and local E2E prerequisites** (AC: 4, 5, 8)
+  - [x] 3.1 Add an explicit Node runtime requirement for `next@16.1.1`: Node `>=20.9.0`.
+  - [x] 3.2 Prefer documenting the requirement in README and, if appropriate, adding `package.json` `engines` to prevent repeated local confusion.
+  - [x] 3.3 Keep `packageManager: "pnpm@8.15.0"` unchanged unless there is a concrete reason to upgrade.
+  - [x] 3.4 Mention the current Playwright config behavior: one worker, Desktop Chrome + Mobile Chrome projects, `next dev --webpack`, and `PLAYWRIGHT_TEST_BASE_URL` reuse when an external server is already running.
 
-- [ ] **T4 - Update README / runbook for launch readiness** (AC: 1, 3, 4, 5, 6, 8)
-  - [ ] 4.1 Refresh README's stale current-status text so it no longer says only Story 1.1 is landed.
-  - [ ] 4.2 Add a compact "Launch Readiness" section with the recommended order:
+- [x] **T4 - Update README / runbook for launch readiness** (AC: 1, 3, 4, 5, 6, 8)
+  - [x] 4.1 Refresh README's stale current-status text so it no longer says only Story 1.1 is landed.
+  - [x] 4.2 Add a compact "Launch Readiness" section with the recommended order:
     - confirm Node/pnpm versions
     - install/generate Prisma if needed
     - run `pnpm typecheck`
@@ -111,24 +111,24 @@ so that the first public release does not break the core value flow.
     - run production-readiness env verification with placeholders replaced
     - run the launch E2E matrix or script
     - record blockers and release decision
-  - [ ] 4.3 Explain the difference between local deterministic QA and production configuration verification.
-  - [ ] 4.4 Point failures to likely owners: env/config, DB, auth/email, Stripe/webhook, AI/chat, analytics/monitoring, or product assertion.
-  - [ ] 4.5 Avoid promising a production deployment, incident process, admin dashboard, or formal legal/compliance signoff in this story.
+  - [x] 4.3 Explain the difference between local deterministic QA and production configuration verification.
+  - [x] 4.4 Point failures to likely owners: env/config, DB, auth/email, Stripe/webhook, AI/chat, analytics/monitoring, or product assertion.
+  - [x] 4.5 Avoid promising a production deployment, incident process, admin dashboard, or formal legal/compliance signoff in this story.
 
-- [ ] **T5 - Fill only real coverage gaps** (AC: 1, 2, 6, 7)
-  - [ ] 5.1 Review existing tests before adding new ones; use `rg -n "test\\(" e2e/*.ts` and the launch matrix.
-  - [ ] 5.2 If no new E2E is needed, state that the launch safety net is a curated gate over existing specs.
-  - [ ] 5.3 If a gap exists, add the smallest focused test in the most relevant existing spec; avoid a slow all-in-one browser journey unless it catches something existing specs cannot.
-  - [ ] 5.4 Keep DB-backed tests serial/Desktop-only where existing specs already do so.
-  - [ ] 5.5 Do not call live external services; use the existing dev login, dev-mock checkout, Stripe signed payload helpers, analytics mock, observability test sink, and deterministic chat test modes.
+- [x] **T5 - Fill only real coverage gaps** (AC: 1, 2, 6, 7)
+  - [x] 5.1 Review existing tests before adding new ones; use `rg -n "test\\(" e2e/*.ts` and the launch matrix.
+  - [x] 5.2 If no new E2E is needed, state that the launch safety net is a curated gate over existing specs.
+  - [x] 5.3 If a gap exists, add the smallest focused test in the most relevant existing spec; avoid a slow all-in-one browser journey unless it catches something existing specs cannot.
+  - [x] 5.4 Keep DB-backed tests serial/Desktop-only where existing specs already do so.
+  - [x] 5.5 Do not call live external services; use the existing dev login, dev-mock checkout, Stripe signed payload helpers, analytics mock, observability test sink, and deterministic chat test modes.
 
-- [ ] **T6 - Run and record validation honestly** (AC: 8)
-  - [ ] 6.1 Run or document why unable to run `pnpm typecheck`.
-  - [ ] 6.2 Run or document why unable to run `pnpm lint`.
-  - [ ] 6.3 Run or document why unable to run local deterministic launch E2E coverage.
-  - [ ] 6.4 Run or document why unable to run production-readiness env verification.
-  - [ ] 6.5 If Node version blocks E2E, document it as a toolchain blocker and do not label E2E as passed.
-  - [ ] 6.6 Update this story's Dev Agent Record with exact commands and results.
+- [x] **T6 - Run and record validation honestly** (AC: 8)
+  - [x] 6.1 Run or document why unable to run `pnpm typecheck`.
+  - [x] 6.2 Run or document why unable to run `pnpm lint`.
+  - [x] 6.3 Run or document why unable to run local deterministic launch E2E coverage.
+  - [x] 6.4 Run or document why unable to run production-readiness env verification.
+  - [x] 6.5 If Node version blocks E2E, document it as a toolchain blocker and do not label E2E as passed.
+  - [x] 6.6 Update this story's Dev Agent Record with exact commands and results.
 
 ## Dev Notes
 
@@ -263,6 +263,15 @@ GPT-5 Codex
 - Auto-discovered first backlog story from `stories/sprint-status.yaml`: `7-4-launch-readiness-qa-and-regression-safety-net`.
 - Discovery loaded `epics.md`, `产品Brief.md`, `技术架构详细设计.md`, `UX设计规格说明.md`, Story 7.3, package/test/env/runbook files, and existing E2E coverage inventory.
 - Git intelligence checked recent commit `ceb9328`, which completed Story 7.3 review patch and changed `src/lib/billing/webhook-service.ts`, `e2e/stripe-webhook.spec.ts`, Story 7.3, sprint status, project master doc, and a log file.
+- bmad-dev-story prerequisites loaded from the BMAD skill: **macOS/Linux** `~/.cursor/skills/bmad-dev-story/SKILL.md`, plus `workflow.md` and `checklist.md`; project config loaded from `_bmad/bmm/config.yaml`.
+- Story 7.4 auto-discovered from `stories/sprint-status.yaml`, marked `in-progress`, and implemented within README/env/package metadata boundaries.
+- Coverage inventory run with `rg -n "test\\(" e2e/*.ts`; no new E2E was added because existing focused specs already cover the launch matrix.
+- Validation command `pnpm typecheck`: passed under local Node `18.20.8`, with pnpm engine warning because the repo now declares Node `>=20.9.0`.
+- Validation command `pnpm lint`: passed under local Node `18.20.8`, with pnpm engine warning.
+- Validation command `pnpm run deploy:verify`: failed as expected without `.env.local` / `.env.production.local`, listing the 7 missing local required variables.
+- Validation command `pnpm run deploy:verify:production`: failed as expected without production env, listing the 13 missing production-critical variables.
+- Low-cost production-readiness success assertion run with temporary dummy env values: `pnpm run deploy:verify:production` passed 13 required variables and skipped 5 optional variables.
+- Launch gate command `pnpm run qa:launch` run with temporary local env values: `typecheck`, `lint`, and local `deploy:verify` passed; Playwright E2E was blocked before app assertions because Next.js refused to start on Node `18.20.8` and requires Node `>=20.9.0`. Category: toolchain blocker, not application failure.
 
 ### Completion Notes List
 
@@ -271,13 +280,25 @@ GPT-5 Codex
 - Reuse existing tests first. A new all-in-one launch journey is not automatically better than the existing focused specs and may create slow/flaky duplication.
 - Production env verification should be explicit, because normal local development intentionally omits real Stripe/Sentry/AI secrets.
 - This story should end with an honest launch-readiness record: passed, failed, or blocked, with commands and reasons.
+- Implemented `deploy:verify:production` / `--production` mode that forces production-critical requirements from a local shell and fails malformed required values in that mode.
+- Added deterministic `qa:launch` package script that composes existing specs rather than duplicating flows; marketing runs across configured projects, while the rest of the matrix runs Desktop Chrome where DB-backed specs already concentrate real assertions.
+- Added `package.json` engines for Node `>=20.9.0` and pnpm `>=8.15.0`; kept `packageManager: "pnpm@8.15.0"` unchanged.
+- Refreshed README current status and added compact Launch Readiness runbook, matrix, deterministic-vs-production distinction, external service boundaries, and failure triage categories.
+- Updated `.env.example` with `DIRECT_URL`, Gemini/Groq keys, and optional Upstash variables so env docs match the production-readiness verifier.
+- No product behavior, payment behavior, analytics vocabulary, observability abstraction, Prisma schema, or E2E assertions were changed.
+- Final status uses this project's `code-review` state instead of the generic BMAD template's `review` state.
 
 ### File List
 
 - `stories/7-4-launch-readiness-qa-and-regression-safety-net.md`
 - `stories/sprint-status.yaml`
 - `项目主档案.md`
+- `README.md`
+- `package.json`
+- `.env.example`
+- `scripts/verify-env.ts`
 
 ### Change Log
 
 - 2026-05-13: Created Story 7.4 with launch regression matrix, production env verification requirements, Node/pnpm prerequisite guidance, README/runbook scope, privacy/safety guardrails, and validation recording requirements; story marked ready-for-dev.
+- 2026-05-13: Implemented Story 7.4 launch readiness gate with explicit production env verification mode, deterministic `qa:launch` script, Node/pnpm engine surfacing, README launch matrix/runbook, `.env.example` launch variables, honest validation record, and story status advanced to code-review.

@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=20.9.0",
+    "pnpm": ">=8.15.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -13,6 +17,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "deploy:verify": "tsx scripts/verify-env.ts",
+    "deploy:verify:production": "tsx scripts/verify-env.ts --production",
+    "qa:launch": "pnpm typecheck && pnpm lint && pnpm run deploy:verify && pnpm exec playwright test e2e/marketing-shell.spec.ts && pnpm exec playwright test e2e/auth-shell.spec.ts e2e/stripe-webhook.spec.ts e2e/program-entry.spec.ts e2e/analytics-events.spec.ts e2e/observability.spec.ts --project=\"Desktop Chrome\"",
     "db:generate": "prisma generate",
     "postinstall": "prisma generate"
   },

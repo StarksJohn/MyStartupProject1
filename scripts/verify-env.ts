@@ -15,7 +15,9 @@
  * Additional keys (GEMINI, GROQ, UPSTASH_*) are added
  * by the stories that introduce those features.
  *
- * Usage: pnpm run deploy:verify
+ * Usage:
+ *   pnpm run deploy:verify
+ *   pnpm run deploy:verify -- --production
  */
 
 import * as fs from "fs";
@@ -186,8 +188,18 @@ function loadEnvFile(filePath: string): Record<string, string> {
 }
 
 function verifyEnvironment(): boolean {
+  const productionReadiness =
+    process.argv.includes("--production") ||
+    process.argv.includes("--production-readiness");
+
   log("\n==============================================", colors.cyan);
   log("  Fracture Recovery - Environment Verification", colors.cyan);
+  log(
+    productionReadiness
+      ? "  Mode: production readiness"
+      : "  Mode: local deterministic",
+    colors.cyan
+  );
   log("==============================================\n", colors.cyan);
 
   const envLocal = loadEnvFile(path.join(process.cwd(), ".env.local"));
@@ -195,7 +207,7 @@ function verifyEnvironment(): boolean {
     path.join(process.cwd(), ".env.production.local")
   );
   const env = { ...process.env, ...envLocal, ...envProd };
-  const isProduction = env.NODE_ENV === "production";
+  const isProduction = env.NODE_ENV === "production" || productionReadiness;
 
   let passed = 0;
   let failed = 0;
@@ -219,9 +231,16 @@ function verifyEnvironment(): boolean {
         warnings++;
       }
     } else if (req.pattern && !req.pattern.test(value)) {
-      log(`  [WARN] ${req.name} - format may be incorrect`, colors.yellow);
-      log(`         ${req.description}`, colors.reset);
-      warnings++;
+      if (isRequired && productionReadiness) {
+        log(`  [FAIL] ${req.name} - format is invalid`, colors.red);
+        log(`         ${req.description}`, colors.reset);
+        errors.push(req.name);
+        failed++;
+      } else {
+        log(`  [WARN] ${req.name} - format may be incorrect`, colors.yellow);
+        log(`         ${req.description}`, colors.reset);
+        warnings++;
+      }
     } else {
       log(`  [PASS] ${req.name}`, colors.green);
       passed++;
@@ -236,7 +255,12 @@ function verifyEnvironment(): boolean {
   log(`  Failed:   ${failed}`, colors.red);
 
   if (failed > 0) {
-    log("\n  Status: NOT READY FOR DEPLOYMENT", colors.red);
+    log(
+      productionReadiness
+        ? "\n  Status: NOT READY FOR PRODUCTION LAUNCH"
+        : "\n  Status: NOT READY FOR DEPLOYMENT",
+      colors.red
+    );
     log("\n  Missing required variables:", colors.red);
     errors.forEach((e) => log(`    - ${e}`, colors.red));
     log(
@@ -247,11 +271,21 @@ function verifyEnvironment(): boolean {
   }
 
   if (warnings > 0) {
-    log("\n  Status: READY (with warnings)", colors.yellow);
+    log(
+      productionReadiness
+        ? "\n  Status: PRODUCTION LAUNCH READY (with warnings)"
+        : "\n  Status: READY (with warnings)",
+      colors.yellow
+    );
     return true;
   }
 
-  log("\n  Status: READY FOR DEPLOYMENT", colors.green);
+  log(
+    productionReadiness
+      ? "\n  Status: READY FOR PRODUCTION LAUNCH"
+      : "\n  Status: READY FOR DEPLOYMENT",
+    colors.green
+  );
   return true;
 }
 
