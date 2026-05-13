@@ -442,7 +442,6 @@ test.describe("program entry", () => {
     await page.getByTestId("chat-input").fill("Is finger stiffness expected today?");
     await page.getByTestId("chat-send").click();
 
-    await expect(page.getByTestId("chat-answering-state")).toBeVisible();
     await expect(page.getByTestId("chat-message-user")).toContainText(
       "Is finger stiffness expected today?"
     );

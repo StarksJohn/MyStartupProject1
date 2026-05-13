@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Environment Variables Verification - Story 1.1 baseline.
+ * Environment Variables Verification.
  *
- * Checks shell + Story 2.1 identity env vars:
+ * Checks local deterministic variables and, when requested, production
+ * launch-readiness variables:
  *   - NEXT_PUBLIC_APP_URL
  *   - NEXTAUTH_URL
  *   - NEXTAUTH_SECRET
@@ -11,9 +12,6 @@
  *   - EMAIL_FROM
  *   - Sentry DSN (optional locally, required for production monitoring)
  *   - STRIPE_SECRET_KEY (required in production, dev-mocked locally)
- *
- * Additional keys (GEMINI, GROQ, UPSTASH_*) are added
- * by the stories that introduce those features.
  *
  * Usage:
  *   pnpm run deploy:verify

@@ -10,11 +10,11 @@
 
 ## 当前状态
 
-已进入 Epic 7 的发布前质量门阶段。Epic 1-6 已完成核心 MVP 闭环，当前聚焦 Story 7.4：
+Epic 7 的发布前质量门已完成。Epic 1-7 已覆盖核心 MVP 闭环、发布前 QA、安全回归、环境验证和可观测性门禁；当前发布候选可进入 production configuration / release decision 准备：
 
 `Launch Readiness QA and Regression Safety Net`
 
-目标是把已经积累的 Playwright 回归覆盖、环境变量检查、工具链前置要求和发布前人工判断整理成可重复执行的 launch gate。
+Story 7.4 已把已经积累的 Playwright 回归覆盖、环境变量检查、工具链前置要求和发布前人工判断整理成可重复执行的 launch gate；本地 deterministic `pnpm run qa:launch` 已在 Node `20.20.2` + PostgreSQL 17 + pgvector 环境下通过。
 
 已经完成的核心产物：
 
@@ -103,7 +103,7 @@ pnpm run qa:launch
 | Analytics no-op/provider behavior and privacy vocabulary | `e2e/analytics-events.spec.ts` |
 | Observability sanitization and no-DSN behavior | `e2e/observability.spec.ts` |
 
-Local QA must stay deterministic: dev-mock Stripe checkout, signed test webhook payloads, no-op or mocked analytics, no-DSN Sentry behavior, deterministic chat provider paths. It must not call live Stripe, Sentry, Plausible, Umami, Gemini, Groq, Upstash, or send real email.
+Local QA must stay deterministic: dev-mock Stripe checkout, signed test webhook payloads, no-op or mocked analytics, no-DSN Sentry behavior, deterministic chat provider paths, and a reachable local/Supabase Postgres database with Prisma schema applied. It must not call live Stripe, Sentry, Plausible, Umami, Gemini, Groq, Upstash, or send real email.
 
 ### Production Configuration Gate
 
@@ -158,7 +158,7 @@ These remain optional for local deterministic QA unless launch policy changes: `
 - `src/lib/prisma.ts`、`src/lib/query-client.ts`、`src/lib/utils.ts`
 - `src/components/providers/{query,session,index}.tsx`
 - `src/components/ui/{button,sonner}.tsx` + `globals.css` 的 token 系统
-- `scripts/verify-env.ts`（裁剪到 Story 1.1 的 env 集）
+- `scripts/verify-env.ts`（本地 deterministic env gate + explicit production-readiness mode）
 
 ## 建议阅读顺序
 
@@ -205,8 +205,8 @@ These remain optional for local deterministic QA unless launch policy changes: `
 
 ## 下一步
 
-- Story 1.1 落盘完成后：`pnpm install` + `pnpm dev` 手动冒烟 -> `pnpm test:e2e` -> 视情况跑一次轻量 `bmad-code-review`
-- 然后回到 `bmad-create-story` 生成 `1-2-landing-hero-core-value` 规格
+- 当前进度以 `stories/sprint-status.yaml` 为准。
+- Story 7.4 / Epic 7 已完成；下一步进入 production configuration gate 与 release decision，至少运行 `pnpm run deploy:verify:production` 并确认真实托管 secrets 后再公开发布。
 
 如果后续文档发生阶段切换、主线变更、关键决策变化，优先更新：
 
