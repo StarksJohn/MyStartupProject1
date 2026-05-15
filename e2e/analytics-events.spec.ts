@@ -241,7 +241,7 @@ test.describe("product analytics events", () => {
     await page.goto("/");
     await expect(page.getByTestId("landing-hero")).toBeVisible();
     await page.getByRole("link", { name: "See how the 14-day plan works" }).click();
-    await expect(page).toHaveURL(/#how-it-works$/);
+    await expect(page.getByTestId("landing-how-it-works")).toBeInViewport();
   });
 
   test("landing events use the approved vocabulary and safe properties", async ({
@@ -252,7 +252,7 @@ test.describe("product analytics events", () => {
     await page.goto("/");
     await expect(page.getByTestId("landing-hero")).toBeVisible();
     await page.getByRole("link", { name: "See how the 14-day plan works" }).click();
-    await expect(page).toHaveURL(/#how-it-works$/);
+    await expect(page.getByTestId("landing-how-it-works")).toBeInViewport();
 
     const events = await getAnalyticsEvents(page);
     expect(events).toEqual(
